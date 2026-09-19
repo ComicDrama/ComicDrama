@@ -99,6 +99,44 @@ enum DialogueType {
   SHOUT
 }
 
+enum ShotStatus {
+  DRAFT
+  IN_PROGRESS
+  REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+enum ShotVersionStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  SUPERSEDED
+  ARCHIVED
+}
+
+enum ShotDependencyType {
+  CONTINUITY
+  MATCH_CUT
+  CARRY_OVER
+  REFERENCE
+  TIMELINE
+}
+
+enum StoryboardPanelType {
+  KEYFRAME
+  THUMBNAIL
+  CAMERA_BOARD
+  ANNOTATION
+}
+
+enum GenerationStrategy {
+  NONE
+  TEXT_TO_VIDEO
+  IMAGE_TO_VIDEO
+  KEYFRAME_TO_VIDEO
+}
+
 model Project {
   id          String        @id @default(uuid()) @db.Uuid
   slug        String        @unique @db.VarChar(120)
@@ -234,6 +272,7 @@ model SourceSegment {
   scriptScenes    Scene[]               @relation("SceneSourceSegment")
   scriptBeats     Beat[]                @relation("BeatSourceSegment")
   scriptDialogues Dialogue[]            @relation("DialogueSourceSegment")
+  shotVersions    ShotVersion[]         @relation("ShotVersionSourceSegment")
 
   @@unique([versionId, ordinal])
   @@index([versionId, type])
@@ -280,6 +319,8 @@ model ScriptVersion {
   sourceVersion SourceDocumentVersion? @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   currentOf     Script?                @relation("ScriptCurrentVersion")
   scenes        Scene[]
+  shots         Shot[]
+  shotVersions  ShotVersion[]
 
   @@unique([scriptId, version])
   @@index([scriptId, status])
@@ -329,6 +370,7 @@ model Beat {
   scene         Scene          @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   sourceSegment SourceSegment? @relation("BeatSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   dialogues     Dialogue[]
+  shots         Shot[]
 
   @@unique([sceneId, ordinal])
   @@index([sourceSegmentId])
@@ -357,4 +399,111 @@ model Dialogue {
   @@index([beatId])
   @@index([sourceSegmentId])
   @@map("dialogues")
+}
+
+model Shot {
+  id               String     @id @default(uuid()) @db.Uuid
+  scriptVersionId  String     @db.Uuid
+  beatId           String     @db.Uuid
+  ordinal          Int
+  title            String?    @db.VarChar(200)
+  status           ShotStatus @default(DRAFT)
+  currentVersionId String?    @unique @db.Uuid
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  archivedAt       DateTime?
+
+  scriptVersion  ScriptVersion    @relation(fields: [scriptVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  beat           Beat             @relation(fields: [beatId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versions       ShotVersion[]    @relation("ShotVersions")
+  currentVersion ShotVersion?     @relation("ShotCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  outgoingDeps   ShotDependency[] @relation("ShotDependencyFrom")
+  incomingDeps   ShotDependency[] @relation("ShotDependencyTo")
+
+  @@unique([beatId, ordinal])
+  @@index([scriptVersionId, status])
+  @@index([status])
+  @@index([archivedAt])
+  @@map("shots")
+}
+
+model ShotVersion {
+  id                 String             @id @default(uuid()) @db.Uuid
+  shotId             String             @db.Uuid
+  scriptVersionId    String             @db.Uuid
+  parentVersionId    String?            @db.Uuid
+  sourceSegmentId    String?            @db.Uuid
+  version            Int
+  durationFrames     Int
+  shotSize           String?            @db.VarChar(80)
+  cameraAngle        String?            @db.VarChar(100)
+  cameraMovement     String?            @db.VarChar(150)
+  lens               String?            @db.VarChar(80)
+  action             String?
+  dialogueNotes      String?
+  generationStrategy GenerationStrategy @default(NONE)
+  characterRefs      Json?
+  characterActions   Json?
+  lighting           Json?
+  composition        Json?
+  continuity         Json?
+  audio              Json?
+  promptNotes        String?
+  status             ShotVersionStatus  @default(DRAFT)
+  changeSummary      String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  shot          Shot              @relation("ShotVersions", fields: [shotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  scriptVersion ScriptVersion     @relation(fields: [scriptVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentVersion ShotVersion?      @relation("ShotVersionLineage", fields: [parentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  childVersions ShotVersion[]     @relation("ShotVersionLineage")
+  sourceSegment SourceSegment?    @relation("ShotVersionSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  currentOf     Shot?             @relation("ShotCurrentVersion")
+  panels        StoryboardPanel[]
+
+  @@unique([shotId, version])
+  @@index([scriptVersionId, status])
+  @@index([parentVersionId])
+  @@index([sourceSegmentId])
+  @@map("shot_versions")
+}
+
+model ShotDependency {
+  id         String             @id @default(uuid()) @db.Uuid
+  fromShotId String             @db.Uuid
+  toShotId   String             @db.Uuid
+  type       ShotDependencyType
+  notes      String?
+  createdAt  DateTime           @default(now())
+
+  fromShot Shot @relation("ShotDependencyFrom", fields: [fromShotId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  toShot   Shot @relation("ShotDependencyTo", fields: [toShotId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([fromShotId, toShotId, type])
+  @@index([toShotId])
+  @@map("shot_dependencies")
+}
+
+model StoryboardPanel {
+  id            String              @id @default(uuid()) @db.Uuid
+  shotVersionId String              @db.Uuid
+  ordinal       Int
+  type          StoryboardPanelType @default(KEYFRAME)
+  storageKey    String?             @db.VarChar(500)
+  thumbnailKey  String?             @db.VarChar(500)
+  mimeType      String?             @db.VarChar(120)
+  sha256        String?             @db.Char(64)
+  width         Int?
+  height        Int?
+  caption       String?
+  annotations   Json?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  shotVersion ShotVersion @relation(fields: [shotVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([shotVersionId, ordinal])
+  @@index([shotVersionId, type])
+  @@map("storyboard_panels")
 }

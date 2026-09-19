@@ -48,3 +48,14 @@ npx prisma migrate deploy --schema api/prisma/schema.prisma
 - `Dialogue`：场景内的对白，支持说话人、对白类型、语气和 Beat 归属。
 
 Scene、Beat、Dialogue 均可保存 `SourceSegment` 引用；下游内容通过具体 `ScriptVersion` 追溯，不直接依赖会变化的逻辑剧本对象。已被下游引用的版本不得原地修改，修改应创建新的 `ScriptVersion` 并记录 `parentVersionId`。
+
+## P2-04 分镜事实源
+
+`20260919000400_shot_models` 增加：
+
+- `Shot`：Beat 下的逻辑镜头，维护当前版本指针和镜头顺序。
+- `ShotVersion`：不可变镜头设计版本，记录具体剧本版本、父版本、时长、景别、机位、运动、动作、连续性和生成策略。
+- `ShotDependency`：镜头之间的连续性、匹配剪辑、承接和参考依赖。
+- `StoryboardPanel`：镜头版本的分镜面板及对象存储元数据。
+
+Shot 和 ShotVersion 均追溯到具体 `ScriptVersion`，ShotVersion 可引用 `SourceSegment`；角色、场景和道具的具体资产引用字段先以 JSON 保存，待后续资产模型完成后再建立强类型关联。

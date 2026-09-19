@@ -250,7 +250,12 @@
   - 验证方式：执行 Prisma format/validate；以 P2-02 已提交 Schema 为基线生成迁移差异；执行 `npx prettier --check .` 和 `git diff --check`。
   - 验证结果：通过。Script、ScriptVersion、Scene、Beat、Dialogue 关系和 PostgreSQL 迁移已生成并通过 Schema 校验。
   - 备注：ScriptVersion 通过 `parentVersionId` 保留版本谱系，Scene/Beat/Dialogue 归属具体 ScriptVersion，并可引用 SourceSegment；真实 PostgreSQL `migrate deploy` 待 Docker/PostgreSQL 可用后执行。
-- [ ] `P2-04` 建立 Shot、ShotVersion、ShotDependency、StoryboardPanel。
+- [x] `P2-04` 建立 Shot、ShotVersion、ShotDependency、StoryboardPanel。
+  - 完成日期：2026-09-19。
+  - 实现位置：`E:\Project\ComicDrama\api\prisma\schema.prisma`、`E:\Project\ComicDrama\api\prisma\migrations\20260919000400_shot_models\migration.sql`、`E:\Project\ComicDrama\api\prisma\README.md`。
+  - 验证方式：执行 Prisma format/validate；以 P2-03 已提交 Schema 为基线生成迁移差异；执行 `npx prettier --check .` 和 `git diff --check`。
+  - 验证结果：通过。镜头版本、版本谱系、镜头依赖、分镜面板和对象存储元数据模型已通过 Schema 校验。
+  - 备注：Shot/ShotVersion 均固定到具体 ScriptVersion，ShotVersion 可引用 SourceSegment；角色、场景和道具的强类型资产引用待 P2-05/P2-06 补齐。真实 PostgreSQL `migrate deploy` 待 Docker/PostgreSQL 可用后执行。
 - [ ] `P2-05` 建立 Asset、AssetVersion、AssetCollection、AssetReference。
 - [ ] `P2-06` 建立 Character、CharacterAppearance、VoiceProfile、Location、LocationVersion、SceneContinuity、Prop。
 - [ ] `P2-07` 建立 Generation、GenerationCandidate、ProviderJob。
@@ -550,4 +555,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`、`P2-01`～`P2-03`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。下一步实施 `P2-04`，建立 Shot、ShotVersion、ShotDependency、StoryboardPanel，并让分镜继续追溯到具体剧本版本和 Beat。
+当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`、`P2-01`～`P2-04`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。下一步实施 `P2-05`，建立 Asset、AssetVersion、AssetCollection、AssetReference，并将分镜与可复用资产版本建立强类型关联。
