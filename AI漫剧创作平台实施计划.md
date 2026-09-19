@@ -270,7 +270,12 @@
   - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；在 Docker PostgreSQL 上执行 `prisma migrate deploy` 和 `prisma migrate status`；执行 `git diff --check`。
   - 验证结果：通过。角色基础资料、角色外观与不可变资产版本引用、可复用声音配置、场景逻辑资产及版本、场景连续性状态、道具逻辑资产均已建立；第 6 个迁移已成功应用，数据库状态为最新。
   - 备注：Character、Location、Prop 均可关联逻辑 Asset；CharacterAppearance、LocationVersion、VoiceProfile 样本固定到 AssetVersion；SceneContinuity 记录角色、场景、道具在场次中的状态快照。`subjectType` 与对应实体字段的一致性由后续 API 校验补齐。
-- [ ] `P2-07` 建立 Generation、GenerationCandidate、ProviderJob。
+- [x] `P2-07` 建立 Generation、GenerationCandidate、ProviderJob。
+  - 完成日期：2026-09-19。
+  - 实现位置：`E:\Project\ComicDrama\api\prisma\schema.prisma`、`E:\Project\ComicDrama\api\prisma\migrations\20260919000700_generation_provider_models\migration.sql`、`E:\Project\ComicDrama\api\prisma\README.md`。
+  - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；在 Docker PostgreSQL 上执行 `prisma migrate deploy` 和 `prisma migrate status`；执行 Prettier、类型检查、前后端构建、Python 编译和 `git diff --check`。
+  - 验证结果：通过。Generation 保存目标、输入版本快照、Prompt、模型、参数、成本和候选选择；GenerationCandidate 保存多候选结果及对象存储元数据；ProviderJob 保存异步 Provider 外部任务、重试谱系、幂等键、原始请求/响应和轮询状态；第 7 个迁移已成功应用，数据库状态为最新。
+  - 备注：`targetType`/`targetId` 为跨资源生成目标的多态引用，后续 API 层根据目标类型校验资源归属；候选结果可在人工选定后通过 `assetVersionId` 固化为可复用资产版本。
 - [ ] `P2-08` 建立 Workflow、WorkflowRun、Task、TaskAttempt。
 - [ ] `P2-09` 建立 Timeline、TimelineVersion、Track、Clip、Transition、Keyframe。
 - [ ] `P2-10` 建立 Review、ReviewComment、Approval、RenderJob、RenderSegment、ExportPreset。
@@ -567,4 +572,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`～`P1-13`、`P2-01`～`P2-06`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进。下一步实施 `P2-07`，建立 Generation、GenerationCandidate、ProviderJob，并为后续 Provider Gateway 和生成结果追溯提供事实源。
+当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`～`P1-13`、`P2-01`～`P2-07`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进。下一步实施 `P2-08`，建立 Workflow、WorkflowRun、Task、TaskAttempt，并将生成任务与后续 Redis Streams Worker 协议衔接。

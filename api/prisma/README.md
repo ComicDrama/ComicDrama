@@ -8,6 +8,7 @@
 - `20260919000400_shot_models` 对应实施计划中的 `P2-04`，建立镜头、镜头版本、镜头依赖和分镜面板。
 - `20260919000500_asset_models` 对应实施计划中的 `P2-05`，建立逻辑资产、不可变资产版本、资产集合和下游引用。
 - `20260919000600_character_location_prop_models` 对应实施计划中的 `P2-06`，建立角色、角色外观、声音配置、场景版本、场景连续性和道具。
+- `20260919000700_generation_provider_models` 对应实施计划中的 `P2-07`，建立生成请求、生成候选和 Provider 异步任务。
 
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
@@ -87,3 +88,13 @@ Shot 和 ShotVersion 均追溯到具体 `ScriptVersion`，ShotVersion 可引用 
 - `Prop`：项目级或共享道具卡，可关联逻辑资产和当前资产版本。
 
 角色、场景和道具的视觉文件仍由 `Asset` / `AssetVersion` 管理；数据库只保存结构化设定、版本指针和对象存储元数据。`SceneContinuity.subjectType` 与对应外键字段的业务一致性由 API 层校验，后续将在实体 API 和质检规则中强化。
+
+## P2-07 生成事实源与 Provider 任务
+
+`20260919000700_generation_provider_models` 增加：
+
+- `Generation`：一次面向资产、角色、场景或镜头的生成请求，保存输入版本快照、编译后的 Prompt、Provider/模型、参数、种子、成本和最终选中的候选。
+- `GenerationCandidate`：同一生成请求下的候选结果，保存结果文件元数据、对象存储 key、哈希、尺寸、时长、Provider 输出 ID 和失败信息；人工选定后可关联 `AssetVersion`。
+- `ProviderJob`：Provider 侧异步任务事实源，保存外部任务 ID、幂等键、请求/响应归档、轮询状态、重试父子谱系和候选关联。
+
+`Generation.targetType` / `targetId` 用于支持 `SHOT_VERSION`、`CHARACTER`、`LOCATION`、`PROP` 等多态生成目标；API 层必须校验目标存在、项目归属和输入版本一致性。Provider 原始请求/响应允许归档在数据库 JSON 字段中，生产环境的大型结果文件仍只进入 MinIO/S3。
