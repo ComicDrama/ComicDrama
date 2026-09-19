@@ -264,7 +264,12 @@
   - 验证方式：执行 Prisma format/validate；生成并检查 P2-05 PostgreSQL 迁移；在 Docker PostgreSQL 上执行 `prisma migrate deploy` 和 `prisma migrate status`；执行 Prettier 和 `git diff --check`。
   - 验证结果：通过。Asset、AssetVersion、AssetCollection/AssetCollectionItem、AssetReference 已建立；资产版本包含父版本谱系、对象存储元数据和不可变引用约束；ShotVersion 已建立资产引用关系；第 5 个迁移已成功应用，数据库状态为最新。
   - 备注：数据库仅保存资产元数据、哈希和对象存储 key，大文件进入 MinIO/S3；AssetReference 通过 `assetVersionId` 固定下游使用的版本，并为 ShotVersion 保留强类型外键。
-- [ ] `P2-06` 建立 Character、CharacterAppearance、VoiceProfile、Location、LocationVersion、SceneContinuity、Prop。
+- [x] `P2-06` 建立 Character、CharacterAppearance、VoiceProfile、Location、LocationVersion、SceneContinuity、Prop。
+  - 完成日期：2026-09-19。
+  - 实现位置：`E:\Project\ComicDrama\api\prisma\schema.prisma`、`E:\Project\ComicDrama\api\prisma\migrations\20260919000600_character_location_prop_models\migration.sql`、`E:\Project\ComicDrama\api\prisma\README.md`。
+  - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；在 Docker PostgreSQL 上执行 `prisma migrate deploy` 和 `prisma migrate status`；执行 `git diff --check`。
+  - 验证结果：通过。角色基础资料、角色外观与不可变资产版本引用、可复用声音配置、场景逻辑资产及版本、场景连续性状态、道具逻辑资产均已建立；第 6 个迁移已成功应用，数据库状态为最新。
+  - 备注：Character、Location、Prop 均可关联逻辑 Asset；CharacterAppearance、LocationVersion、VoiceProfile 样本固定到 AssetVersion；SceneContinuity 记录角色、场景、道具在场次中的状态快照。`subjectType` 与对应实体字段的一致性由后续 API 校验补齐。
 - [ ] `P2-07` 建立 Generation、GenerationCandidate、ProviderJob。
 - [ ] `P2-08` 建立 Workflow、WorkflowRun、Task、TaskAttempt。
 - [ ] `P2-09` 建立 Timeline、TimelineVersion、Track、Clip、Transition、Keyframe。
@@ -562,4 +567,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`～`P1-13`、`P2-01`～`P2-05`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进。下一步实施 `P2-06`，建立 Character、CharacterAppearance、VoiceProfile、Location、LocationVersion、SceneContinuity、Prop，并把角色、场景、道具的业务属性与资产版本关联起来。
+当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`～`P1-13`、`P2-01`～`P2-06`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进。下一步实施 `P2-07`，建立 Generation、GenerationCandidate、ProviderJob，并为后续 Provider Gateway 和生成结果追溯提供事实源。

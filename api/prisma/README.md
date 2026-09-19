@@ -7,6 +7,7 @@
 - `20260919000300_script_models` 对应实施计划中的 `P2-03`，建立剧本、场景、节拍和对白事实源。
 - `20260919000400_shot_models` 对应实施计划中的 `P2-04`，建立镜头、镜头版本、镜头依赖和分镜面板。
 - `20260919000500_asset_models` 对应实施计划中的 `P2-05`，建立逻辑资产、不可变资产版本、资产集合和下游引用。
+- `20260919000600_character_location_prop_models` 对应实施计划中的 `P2-06`，建立角色、角色外观、声音配置、场景版本、场景连续性和道具。
 
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
@@ -73,3 +74,16 @@ Shot 和 ShotVersion 均追溯到具体 `ScriptVersion`，ShotVersion 可引用 
 - `AssetReference`：以 `assetVersionId` 固定下游使用的资产版本；`targetType`/`targetId` 支持 `SHOT_VERSION`、`CHARACTER`、`LOCATION`、`PROP` 等多态目标，当前已对 `ShotVersion` 建立外键。
 
 数据库只保存资产元数据、哈希和对象存储 key，大文件进入 MinIO/S3；PostgreSQL 保存资产版本、集合和引用事实。
+
+## P2-06 角色、场景、道具与连续性事实源
+
+`20260919000600_character_location_prop_models` 增加：
+
+- `Character`：项目级或共享角色卡，保存身份、性格、外貌、服装、别名和当前外观指针。
+- `CharacterAppearance`：角色正面、侧面、背面、表情、姿态和服装等外观记录，固定引用具体 `AssetVersion`。
+- `VoiceProfile`：角色声音供应商、声音 ID、语言、地区、音高、语速和风格配置，可选引用声音样本 `AssetVersion`。
+- `Location` / `LocationVersion`：场景逻辑实体和不可变场景版本，保存空间布局、光照、时间、天气、连续性规则和参考资产版本。
+- `SceneContinuity`：将角色、场景、道具在具体剧本场次中的状态记录为有序快照，支持伤势、服装、道具状态和环境变化追踪。
+- `Prop`：项目级或共享道具卡，可关联逻辑资产和当前资产版本。
+
+角色、场景和道具的视觉文件仍由 `Asset` / `AssetVersion` 管理；数据库只保存结构化设定、版本指针和对象存储元数据。`SceneContinuity.subjectType` 与对应外键字段的业务一致性由 API 层校验，后续将在实体 API 和质检规则中强化。
