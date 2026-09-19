@@ -340,6 +340,64 @@ enum InterpolationType {
   BEZIER
 }
 
+enum ReviewTargetType {
+  SCRIPT_VERSION
+  SHOT_VERSION
+  ASSET_VERSION
+  TIMELINE_VERSION
+  RENDER_JOB
+  MEDIA_OBJECT
+}
+
+enum ReviewStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+  SUPERSEDED
+  CANCELLED
+}
+
+enum ReviewCommentStatus {
+  OPEN
+  RESOLVED
+  WONT_FIX
+}
+
+enum ApprovalRole {
+  REVIEWER
+  DIRECTOR
+  PRODUCER
+  EDITOR
+  OTHER
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum RenderJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum RenderSegmentStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  CACHED
+  FAILED
+  CANCELLED
+}
+
 model Project {
   id          String        @id @default(uuid()) @db.Uuid
   slug        String        @unique @db.VarChar(120)
@@ -362,6 +420,9 @@ model Project {
   workflows        Workflow[]
   tasks            Task[]
   workflowRuns     WorkflowRun[]
+  reviews          Review[]
+  renderJobs       RenderJob[]
+  exportPresets    ExportPreset[]
 
   @@index([status])
   @@index([archivedAt])
@@ -1311,6 +1372,7 @@ model TimelineVersion {
   currentOf     Timeline?         @relation("TimelineCurrentVersion")
   tracks        Track[]
   transitions   Transition[]
+  renderJobs    RenderJob[]
 
   @@unique([timelineId, version])
   @@index([timelineId, status])
@@ -1405,4 +1467,149 @@ model Keyframe {
   @@unique([clipId, property, frame])
   @@index([clipId, property, frame])
   @@map("timeline_keyframes")
+}
+
+model Review {
+  id          String           @id @default(uuid()) @db.Uuid
+  projectId   String           @db.Uuid
+  targetType  ReviewTargetType
+  targetId    String           @db.Uuid
+  status      ReviewStatus     @default(DRAFT)
+  revision    Int              @default(1)
+  title       String?          @db.VarChar(240)
+  summary     String?
+  metadata    Json?
+  submittedAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  project   Project         @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  comments  ReviewComment[]
+  approvals Approval[]
+
+  @@index([projectId, status])
+  @@index([targetType, targetId, revision])
+  @@map("reviews")
+}
+
+model ReviewComment {
+  id            String              @id @default(uuid()) @db.Uuid
+  reviewId      String              @db.Uuid
+  authorId      String?             @db.VarChar(120)
+  body          String
+  timecodeFrame Int?
+  targetPath    String?             @db.VarChar(300)
+  status        ReviewCommentStatus @default(OPEN)
+  resolvedById  String?             @db.VarChar(120)
+  resolvedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([reviewId, status, createdAt])
+  @@index([authorId])
+  @@map("review_comments")
+}
+
+model Approval {
+  id         String           @id @default(uuid()) @db.Uuid
+  reviewId   String           @db.Uuid
+  reviewerId String           @db.VarChar(120)
+  role       ApprovalRole
+  decision   ApprovalDecision @default(PENDING)
+  comment    String?
+  decidedAt  DateTime?
+  createdAt  DateTime         @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([reviewId, decision])
+  @@index([reviewerId, createdAt])
+  @@map("review_approvals")
+}
+
+model RenderJob {
+  id                String          @id @default(uuid()) @db.Uuid
+  projectId         String          @db.Uuid
+  timelineVersionId String          @db.Uuid
+  exportPresetId    String          @db.Uuid
+  idempotencyKey    String?         @unique @db.VarChar(240)
+  status            RenderJobStatus @default(QUEUED)
+  outputStorageKey  String?         @db.VarChar(500)
+  outputFileName    String?         @db.VarChar(255)
+  mimeType          String?         @db.VarChar(120)
+  width             Int?
+  height            Int?
+  durationMs        Int?
+  errorCode         String?         @db.VarChar(80)
+  errorMessage      String?
+  metadata          Json?
+  createdAt         DateTime        @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  updatedAt         DateTime        @updatedAt
+
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  timelineVersion TimelineVersion @relation(fields: [timelineVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  exportPreset    ExportPreset    @relation(fields: [exportPresetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  segments        RenderSegment[]
+
+  @@index([projectId, status, createdAt])
+  @@index([timelineVersionId, createdAt])
+  @@index([exportPresetId])
+  @@map("render_jobs")
+}
+
+model RenderSegment {
+  id           String              @id @default(uuid()) @db.Uuid
+  renderJobId  String              @db.Uuid
+  segmentIndex Int
+  startFrame   Int
+  endFrame     Int
+  status       RenderSegmentStatus @default(PENDING)
+  cacheKey     String?             @db.VarChar(500)
+  storageKey   String?             @db.VarChar(500)
+  durationMs   Int?
+  errorCode    String?             @db.VarChar(80)
+  errorMessage String?
+  metadata     Json?
+  createdAt    DateTime            @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  renderJob RenderJob @relation(fields: [renderJobId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([renderJobId, segmentIndex])
+  @@index([renderJobId, status, segmentIndex])
+  @@index([cacheKey])
+  @@map("render_segments")
+}
+
+model ExportPreset {
+  id              String   @id @default(uuid()) @db.Uuid
+  projectId       String?  @db.Uuid
+  name            String   @db.VarChar(200)
+  slug            String   @db.VarChar(120)
+  container       String   @db.VarChar(40)
+  videoCodec      String?  @db.VarChar(80)
+  audioCodec      String?  @db.VarChar(80)
+  width           Int
+  height          Int
+  fps             Float
+  bitrate         Int?
+  audioSampleRate Int?
+  aspectRatio     String?  @db.VarChar(20)
+  isDefault       Boolean  @default(false)
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project    Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  renderJobs RenderJob[]
+
+  @@unique([projectId, slug])
+  @@index([projectId, isDefault])
+  @@map("export_presets")
 }

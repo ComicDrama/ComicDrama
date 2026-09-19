@@ -1,1 +1,1 @@
-# P1-04 起先保持最小依赖；具体 Worker 依赖按 P6/P8 任务补充。
+# P1-04 起先保持最小依赖；具体 Worker 依赖按 P6/P8 任务补充；Python 依赖由 uv 工具管理，使用前需激活虚拟环境 .venv\Scripts\activate，再使用 uv 命令，例如 uv add <pkg>。

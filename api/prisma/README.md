@@ -124,3 +124,16 @@ Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、�
 - `Keyframe`：片段属性在指定帧的值，支持位置、缩放、旋转、不透明度、音量、调色等属性及 step/linear/bezier 插值。
 
 数据库层通过外键、版本唯一约束和常用查询索引保证引用完整性与版本追溯。`Clip.sourceType` 与两个可选引用字段的一致性、同轨道片段重叠、转场范围及时间线帧范围由后续 API/Render Plan 校验。
+
+## P2-10 审核与渲染事实源
+
+`20260919161159_review_render_models` 增加：
+
+- `Review`：项目范围内的审核实例，使用 `targetType`/`targetId` 指向剧本版本、分镜版本、资产版本、时间线版本、渲染任务或媒体对象，并记录审核轮次、状态、摘要和提交/完成时间。
+- `ReviewComment`：审核意见，固定归属一个 Review，可选记录作者、字段路径、时间码帧、处理状态和解决人；时间线/视频评论使用整数帧而不是浮点秒。
+- `Approval`：审核审批记录，保存审批人、角色、决策、说明和决策时间；不覆盖历史记录，支持同一审核的多次审批留痕。
+- `RenderJob`：一次基于 `TimelineVersion` 和 `ExportPreset` 的渲染任务事实源，保存幂等键、状态、输出对象存储键、媒体元数据、错误和生命周期时间。
+- `RenderSegment`：渲染任务的分段执行记录，保存分段序号、帧范围、缓存键、输出对象存储键、状态和错误，支持局部渲染、分段缓存和增量导出。
+- `ExportPreset`：系统级或项目级导出预设，保存容器、音视频编码、分辨率、帧率、码率、音频采样率、画幅和默认标记。
+
+审核对象采用多态目标字段，目标存在性、项目归属、版本状态和 Reviewer/Director 审批角色由 API 层校验。`RenderJob` 必须引用不可变的 `TimelineVersion`；渲染产物和分段文件进入 MinIO/S3，PostgreSQL 只保存对象存储键、哈希/媒体元数据和可追溯状态。`startFrame`、`endFrame`、`timecodeFrame` 的范围关系以及导出前审批闸门将在后续 P6/P9/P10 实施。

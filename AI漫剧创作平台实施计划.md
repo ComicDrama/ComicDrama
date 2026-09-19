@@ -287,7 +287,12 @@
   - 验证方式：执行 Prisma format/validate；生成并应用 PostgreSQL 迁移；检查时间线版本谱系、帧时间基、轨道、素材/候选引用、转场和关键帧索引；执行完整 CI 静态检查。
   - 验证结果：通过。时间线以帧为统一单位，TimelineVersion 保存不可变编辑版本，Clip 可引用 AssetVersion 或 GenerationCandidate，Transition 连接前后 Clip，Keyframe 保存属性曲线；第 9 个迁移已应用，数据库状态为最新。
   - 备注：`sourceType` 与对应引用字段的一致性、同轨道片段重叠检查和时间范围校验由后续 API/渲染计划校验补齐。
-- [ ] `P2-10` 建立 Review、ReviewComment、Approval、RenderJob、RenderSegment、ExportPreset。
+- [x] `P2-10` 建立 Review、ReviewComment、Approval、RenderJob、RenderSegment、ExportPreset。
+  - 完成日期：2026-09-19。
+  - 实现位置：`api/prisma/schema.prisma`、`api/prisma/migrations/20260919161159_review_render_models/migration.sql`、`api/prisma/README.md`、`README.md`。
+  - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；部署迁移并执行 migrate status；检查审核目标、审批历史、TimelineVersion 渲染引用、分段缓存和导出预设索引；执行完整 CI 静态检查。
+  - 验证结果：通过。Review 支持版本/时间线/渲染任务等多态审核目标；ReviewComment 支持字段路径和帧级意见；Approval 保留审批历史；RenderJob 固定 TimelineVersion 与 ExportPreset；RenderSegment 支持局部渲染与分段缓存；第 10 个迁移已应用，数据库状态为最新。
+  - 备注：审核目标存在性、项目归属、Reviewer/Director 角色和导出前审批闸门由后续 API/P9/P10 校验补齐；媒体文件进入 MinIO/S3，数据库保存对象存储键和元数据。
 - [ ] `P2-11` 建立 UsageRecord、CostRecord、AuditLog。
 - [ ] `P2-12` 为所有核心表增加项目归属、创建/更新时间、软删除或归档策略、版本号和必要索引。
 - [ ] `P2-13` 编写迁移、种子数据和回滚说明。
@@ -581,4 +586,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-09`。下一步实施 `P2-10`，建立审核与渲染相关事实源。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-10`。下一步实施 `P2-11`，建立用量、成本与审计事实源。
