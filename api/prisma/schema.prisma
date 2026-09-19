@@ -286,6 +286,60 @@ enum TaskAttemptStatus {
   CANCELLED
 }
 
+enum TimelineStatus {
+  DRAFT
+  IN_PROGRESS
+  REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+enum TimelineVersionStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  SUPERSEDED
+  ARCHIVED
+}
+
+enum TrackType {
+  VIDEO
+  AUDIO
+  SUBTITLE
+}
+
+enum ClipSourceType {
+  ASSET_VERSION
+  GENERATION_CANDIDATE
+}
+
+enum TransitionType {
+  CUT
+  DISSOLVE
+  FADE_IN
+  FADE_OUT
+  WIPE
+  SLIDE
+  CUSTOM
+}
+
+enum KeyframeProperty {
+  POSITION
+  SCALE
+  ROTATION
+  OPACITY
+  VOLUME
+  COLOR
+  BLUR
+  CUSTOM
+}
+
+enum InterpolationType {
+  STEP
+  LINEAR
+  BEZIER
+}
+
 model Project {
   id          String        @id @default(uuid()) @db.Uuid
   slug        String        @unique @db.VarChar(120)
@@ -348,8 +402,9 @@ model Episode {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  season Season  @relation(fields: [seasonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  script Script?
+  season    Season     @relation(fields: [seasonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  script    Script?
+  timelines Timeline[]
 
   @@unique([seasonId, number])
   @@index([seasonId, status])
@@ -846,10 +901,11 @@ model GenerationCandidate {
   createdAt        DateTime                  @default(now())
   selectedAt       DateTime?
 
-  generation   Generation    @relation("GenerationCandidates", fields: [generationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  providerJob  ProviderJob?  @relation(fields: [providerJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  assetVersion AssetVersion? @relation(fields: [assetVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  selectedBy   Generation?   @relation("GenerationSelectedCandidate")
+  generation    Generation    @relation("GenerationCandidates", fields: [generationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  providerJob   ProviderJob?  @relation(fields: [providerJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  assetVersion  AssetVersion? @relation(fields: [assetVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  selectedBy    Generation?   @relation("GenerationSelectedCandidate")
+  timelineClips Clip[]        @relation("ClipGenerationCandidate")
 
   @@unique([generationId, ordinal])
   @@index([providerJobId])
@@ -1151,6 +1207,7 @@ model AssetVersion {
   propCurrents         Prop[]                @relation("PropCurrentVersion")
   voiceSamples         VoiceProfile[]        @relation("VoiceSampleAssetVersion")
   generationCandidate  GenerationCandidate?
+  timelineClips        Clip[]                @relation("ClipAssetVersion")
 
   @@unique([assetId, version])
   @@index([status])
@@ -1213,4 +1270,139 @@ model AssetReference {
   @@index([assetVersionId])
   @@index([targetType, targetId])
   @@map("asset_references")
+}
+
+model Timeline {
+  id               String         @id @default(uuid()) @db.Uuid
+  episodeId        String         @db.Uuid
+  name             String         @db.VarChar(200)
+  status           TimelineStatus @default(DRAFT)
+  currentVersionId String?        @unique @db.Uuid
+  version          Int            @default(1)
+  archivedAt       DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  episode        Episode           @relation(fields: [episodeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versions       TimelineVersion[] @relation("TimelineVersions")
+  currentVersion TimelineVersion?  @relation("TimelineCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([episodeId, name])
+  @@index([episodeId, status])
+  @@index([archivedAt])
+  @@map("timelines")
+}
+
+model TimelineVersion {
+  id              String                @id @default(uuid()) @db.Uuid
+  timelineId      String                @db.Uuid
+  parentVersionId String?               @db.Uuid
+  version         Int
+  status          TimelineVersionStatus @default(DRAFT)
+  timebase        Int                   @default(24)
+  durationFrames  Int                   @default(0)
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  timeline      Timeline          @relation("TimelineVersions", fields: [timelineId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentVersion TimelineVersion?  @relation("TimelineVersionLineage", fields: [parentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  childVersions TimelineVersion[] @relation("TimelineVersionLineage")
+  currentOf     Timeline?         @relation("TimelineCurrentVersion")
+  tracks        Track[]
+  transitions   Transition[]
+
+  @@unique([timelineId, version])
+  @@index([timelineId, status])
+  @@index([parentVersionId])
+  @@map("timeline_versions")
+}
+
+model Track {
+  id                String    @id @default(uuid()) @db.Uuid
+  timelineVersionId String    @db.Uuid
+  name              String    @db.VarChar(200)
+  type              TrackType
+  sortOrder         Int       @default(0)
+  muted             Boolean   @default(false)
+  locked            Boolean   @default(false)
+  volume            Float?
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  timelineVersion TimelineVersion @relation(fields: [timelineVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  clips           Clip[]
+
+  @@unique([timelineVersionId, name])
+  @@index([timelineVersionId, type, sortOrder])
+  @@map("timeline_tracks")
+}
+
+model Clip {
+  id                    String         @id @default(uuid()) @db.Uuid
+  trackId               String         @db.Uuid
+  sourceType            ClipSourceType
+  assetVersionId        String?        @db.Uuid
+  generationCandidateId String?        @db.Uuid
+  timelineStartFrame    Int
+  durationFrames        Int
+  sourceInFrame         Int            @default(0)
+  sourceOutFrame        Int?
+  playbackRate          Float          @default(1)
+  transform             Json?
+  effects               Json?
+  metadata              Json?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  track               Track                @relation(fields: [trackId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  assetVersion        AssetVersion?        @relation("ClipAssetVersion", fields: [assetVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  generationCandidate GenerationCandidate? @relation("ClipGenerationCandidate", fields: [generationCandidateId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  outgoingTransitions Transition[]         @relation("TransitionOutgoing")
+  incomingTransitions Transition[]         @relation("TransitionIncoming")
+  keyframes           Keyframe[]
+
+  @@index([trackId, timelineStartFrame])
+  @@index([assetVersionId])
+  @@index([generationCandidateId])
+  @@map("timeline_clips")
+}
+
+model Transition {
+  id                String         @id @default(uuid()) @db.Uuid
+  timelineVersionId String         @db.Uuid
+  outgoingClipId    String         @db.Uuid
+  incomingClipId    String         @db.Uuid
+  type              TransitionType
+  startFrame        Int
+  durationFrames    Int
+  parameters        Json?
+  createdAt         DateTime       @default(now())
+
+  timelineVersion TimelineVersion @relation(fields: [timelineVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  outgoingClip    Clip            @relation("TransitionOutgoing", fields: [outgoingClipId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  incomingClip    Clip            @relation("TransitionIncoming", fields: [incomingClipId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([outgoingClipId, incomingClipId])
+  @@index([timelineVersionId, startFrame])
+  @@map("timeline_transitions")
+}
+
+model Keyframe {
+  id            String            @id @default(uuid()) @db.Uuid
+  clipId        String            @db.Uuid
+  property      KeyframeProperty
+  frame         Int
+  value         Json
+  interpolation InterpolationType @default(LINEAR)
+  easing        String?           @db.VarChar(80)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  clip Clip @relation(fields: [clipId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([clipId, property, frame])
+  @@index([clipId, property, frame])
+  @@map("timeline_keyframes")
 }

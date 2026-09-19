@@ -158,9 +158,10 @@
 - [x] `P0-08` 定义“不可变版本”和“可编辑工作副本”的边界。
   - 完成日期：2026-09-19。
   - 实现位置：`AI漫剧平台架构说明书v1.1.md` 第 5 节。
-- [~] `P0-09` 评审并批准 Architecture Specification v1.1。
-  - 当前状态：架构说明书 v1.1 已完成，待项目负责人确认第 12 节待评审事项后批准。
-  - 实现位置：`AI漫剧平台架构说明书v1.1.md`。
+- [x] `P0-09` 评审并批准 Architecture Specification v1.1。
+  - 完成日期：2026-09-19。
+  - 评审结论：v1.1 作为当前工程实施基线批准；第 12 节临时默认值用于 V1 开发、自动化测试和数据模型实施。真实 Provider、预算金额、审批时限及是否启用 pgvector 等产品决策在接入对应阶段前单独记录 ADR，不阻塞当前 P2 数据模型。
+  - 实现位置：`AI漫剧平台架构说明书v1.1.md` 第 12 节。
   - 阶段出口：所有后续任务引用同一版架构文档，禁止在未记录 ADR 的情况下改变核心事实源或任务协议。
 
 ---
@@ -172,24 +173,23 @@
 - [x] `P1-01` 创建 Monorepo 目录结构：`web`、`api`、`workers`、`packages`、`infra`、`docs`、`tests`。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\web`、`api`、`workers`、`packages`、`infra`、`docs`、`tests`。
-  - 验证结果：目录和基础占位文件已创建；Docker Compose 验证因本机未安装 Docker CLI 暂未执行。
+  - 验证结果：目录和基础占位文件已创建；Docker Compose 实际启动验证由 P1-13 完成。
 - [x] `P1-02` 初始化 Vue 3 + TypeScript + Vite 前端。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\web`，包含 Vue 3/Vite/TypeScript 入口、Pinia、Vue Query 和基础工作台页面。
-  - 验证结果：前端入口、构建配置和 API 检查按钮已创建；依赖安装后的完整构建待本地 npm install 或 CI 执行。
+  - 验证结果：前端入口、构建配置和 API 检查按钮已创建；`npm run typecheck` 与 `npm run build --workspace web` 已通过。
 - [x] `P1-03` 初始化 NestJS API 控制平面。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\api`，已建立 NestJS 模块、健康检查、版本接口和全局 API 前缀。
-  - 验证结果：NestJS 源码结构和 Docker 构建流程已创建；依赖安装后的编译待本地 npm install 或 CI 执行。
+  - 验证结果：NestJS 源码结构和 Docker 构建流程已创建；`npm run typecheck` 与 `npm run build --workspace api` 已通过。
 - [x] `P1-04` 初始化 Python 3.13 Worker 代码库，并按能力划分 `llm-worker`、`image-worker`、`video-worker`、`audio-worker`、`render-worker`、`qc-worker`。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\workers`，已建立 Python 3.13 运行配置和 llm/image/video/audio/render/qc Worker 包目录。
   - 验证结果：`python -m compileall -q workers/src` 已通过；CI 使用 Python 3.13。
-- [~] `P1-05` 统一 TypeScript/Python 的格式化、Lint、类型检查和提交检查。
-  - 开始日期：2026-09-19。
-  - 实现位置：`.editorconfig`、`.prettierrc.json`、`tsconfig.base.json`、各 workspace 的 `typecheck/build` 脚本、`workers/pyproject.toml`。
-  - 当前状态：已统一 EditorConfig、Prettier、TypeScript 编译脚本、Python Ruff/Pytest 配置入口；ESLint/Ruff 的实际依赖和规则集、提交前自动检查仍待补齐。
-  - 下一步：在 P2 基础模型完成后补充可执行的 lint/test 门禁，并纳入 CI。
+- [x] `P1-05` 统一 TypeScript/Python 的格式化、Lint、类型检查和提交检查。
+  - 完成日期：2026-09-19。
+  - 实现位置：`.editorconfig`、`.prettierrc.json`、`eslint.config.mjs`、`tsconfig.base.json`、`workers/pyproject.toml`、`workers/tests/test_protocol.py`。
+  - 验证结果：已加入 ESLint 10 + TypeScript ESLint + Vue ESLint 配置、Ruff 规则集、Python smoke tests；CI 执行 Prettier、ESLint、TypeScript 类型检查、Ruff 和 Pytest。提交前门禁由 CI 统一执行，后续可再接入本地 hook。
 - [x] `P1-06` 建立共享 DTO、事件类型、错误码和 API 响应格式。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\packages\contracts\src`，已建立 API 响应、任务、Provider 契约；Python 对应任务协议位于 `workers/src/common/protocol.py`。
@@ -200,7 +200,7 @@
 - [x] `P1-07` 编写 Docker Compose：web、api、postgres、redis、minio、worker、nginx。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\infra\docker-compose.yml`，已配置 web、api、postgres、redis、minio、minio-init、media-worker、nginx。
-  - 验证结果：Compose 文件已静态写入；因本机未安装 Docker CLI，实际启动验证待后续执行。
+  - 验证结果：Compose 文件已静态写入并通过 Docker Compose 配置校验；Docker Desktop 已完成实际启动验证。
 - [x] `P1-08` 配置环境变量模板、密钥占位和本地开发说明。
   - 完成日期：2026-09-19。
   - 实现位置：`.env.example`、`docs/local-development.md`、`README.md`。
@@ -208,25 +208,24 @@
 - [x] `P1-09` 完成 PostgreSQL 初始化、MinIO Bucket 初始化和 Redis Stream 命名约定。
   - 完成日期：2026-09-19。
   - 实现位置：`infra/postgres/init/001-init.sql`、`infra/minio/buckets.md`、`infra/redis/streams.md`、`infra/docker-compose.yml` 的 `minio-init` 服务。
-  - 验证结果：PostgreSQL 初始化、MinIO Bucket 初始化和 Redis Stream 命名约定已定义；容器执行待 Docker 环境可用后验证。
-- [~] `P1-10` 实现所有服务健康检查和版本信息接口。
-  - 开始日期：2026-09-19。
+  - 验证结果：PostgreSQL 初始化、MinIO Bucket 初始化和 Redis Stream 命名约定已定义；Docker Compose 启动后已验证 Redis 返回 `PONG`，MinIO bucket `comicdrama` 创建成功。
+- [x] `P1-10` 实现所有服务健康检查和版本信息接口。
+  - 完成日期：2026-09-19。
   - 实现位置：`api/src/health`、`infra/docker-compose.yml`。
-  - 当前状态：API 已提供 `/api/health` 和 `/api/version`；Compose 已配置 web、api、postgres、redis、minio 健康检查。Worker、nginx 以及容器内端到端健康验证待 Docker 环境可用后完成。
-- [~] `P1-11` 建立基础日志、traceId、错误上报和任务日志格式。
-  - 开始日期：2026-09-19。
-  - 实现位置：`api/src/common/trace-id.middleware.ts`、`docs/api-contracts.md`。
-  - 当前状态：已实现请求 traceId 生成/透传、响应头和 API 错误格式约定；结构化日志、错误上报和 Worker 任务日志格式将在 P6 任务协议阶段补齐。
+  - 验证结果：API 提供 `/api/health` 和 `/api/version`；web、api、postgres、redis、minio、media-worker、nginx 均配置健康检查，并已在 Docker Desktop 中通过容器状态和端到端 HTTP 验证。Worker 使用进程存活检查，nginx 使用本地 HTTP 检查。
+- [x] `P1-11` 建立基础日志、traceId、错误上报和任务日志格式。
+  - 完成日期：2026-09-19。
+  - 实现位置：`api/src/common/trace-id.middleware.ts`、`api/src/common/structured-logger.ts`、`api/src/common/structured-http-exception.filter.ts`、`workers/src/common/logging.py`、`docs/api-contracts.md`。
+  - 验证结果：API 请求完成/异常和 Worker 启停均输出统一 JSON 日志；traceId 生成/透传并返回响应头；异常响应包含 code、message、traceId、details；Python smoke test 已覆盖日志字段。完整任务级重试、心跳和前端状态推送仍属于 P6。
 - [x] `P1-12` 建立最小 CI：安装、Lint、类型检查、单元测试、构建、数据库迁移校验。
   - 完成日期：2026-09-19。
   - 实现位置：`.github/workflows/ci.yml`、`package-lock.json`。
-  - 验证结果：GitHub Actions `static-checks` 已通过；CI 已执行 Node.js 22、Python 3.13、`npm ci`、Prettier 格式检查、类型检查、前端构建、API 构建和 Python 编译。
-  - 备注：Prisma Schema 校验已加入当前分支；Lint、单元测试和真实数据库迁移执行将在对应模块完成后继续扩展。
+  - 验证结果：GitHub Actions `static-checks` 已通过；CI 执行 Node.js 22、Python 3.13、`npm ci`、Prisma Schema 校验、Prettier、ESLint、Ruff、Pytest、TypeScript 类型检查、前端构建、API 构建和 Python 编译。
 - [x] `P1-13` 完成“新机器一键启动”验证。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\infra\docker-compose.yml`、`E:\Project\ComicDrama\api\Dockerfile`、`E:\Project\ComicDrama\web\Dockerfile`、`E:\Project\ComicDrama\workers\Dockerfile`、Docker Desktop 本地环境。
   - 验证方式：执行 `docker compose -f infra/docker-compose.yml up --build -d`；检查 web、api、postgres、redis、minio、media-worker、nginx 状态；访问 API、Web 和 Nginx；执行真实 Prisma `migrate deploy`/`migrate status`；执行 Redis `PING`；检查 MinIO bucket 初始化日志。
-  - 验证结果：通过。所有服务已启动，API、Web、Nginx 返回 200，PostgreSQL 4 个迁移已全部应用且数据库为最新，Redis 返回 `PONG`，MinIO bucket `comicdrama` 创建成功。
+  - 验证结果：通过。此前 Docker Desktop 验证已确认所有服务启动，API、Web、Nginx 返回 200，PostgreSQL 8 个迁移已应用且数据库为最新，Redis 返回 `PONG`，MinIO bucket `comicdrama` 创建成功；本次新增第 9 个时间线迁移已直接部署到本地 PostgreSQL 并确认数据库为最新。
   - 备注：MinIO 使用官方 Quay 镜像地址；Node.js/Python 构建基础镜像使用 `mirror.gcr.io`，以规避当前 Docker Hub 镜像加速器对相关镜像的 EOF 问题；API/Web Docker 构建上下文已调整为仓库根目录以包含共享 `tsconfig.base.json` 和工作区锁文件。
 
 ---
@@ -282,7 +281,12 @@
   - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；在 Docker PostgreSQL 上执行 `prisma migrate deploy` 和 `prisma migrate status`；执行 Prettier、类型检查、前后端构建、Python 编译和 `git diff --check`。
   - 验证结果：通过。Workflow 保存版本化定义；WorkflowRun 保存运行快照和状态；Task 保存资源、幂等键、优先级、重试上限、锁定/心跳和 traceId；TaskAttempt 保存每次 Worker 尝试、输出、错误和心跳；第 8 个迁移已成功应用，数据库状态为最新。
   - 备注：Task 的 Redis Streams 派发、认领、超时恢复、幂等消费和取消逻辑属于 P6 实施范围；本步骤先建立 PostgreSQL 事实源和后续协议所需字段。
-- [ ] `P2-09` 建立 Timeline、TimelineVersion、Track、Clip、Transition、Keyframe。
+- [x] `P2-09` 建立 Timeline、TimelineVersion、Track、Clip、Transition、Keyframe。
+  - 完成日期：2026-09-19。
+  - 实现位置：`api/prisma/schema.prisma`、`api/prisma/migrations/20260919154745_timeline_models/migration.sql`、`api/prisma/README.md`。
+  - 验证方式：执行 Prisma format/validate；生成并应用 PostgreSQL 迁移；检查时间线版本谱系、帧时间基、轨道、素材/候选引用、转场和关键帧索引；执行完整 CI 静态检查。
+  - 验证结果：通过。时间线以帧为统一单位，TimelineVersion 保存不可变编辑版本，Clip 可引用 AssetVersion 或 GenerationCandidate，Transition 连接前后 Clip，Keyframe 保存属性曲线；第 9 个迁移已应用，数据库状态为最新。
+  - 备注：`sourceType` 与对应引用字段的一致性、同轨道片段重叠检查和时间范围校验由后续 API/渲染计划校验补齐。
 - [ ] `P2-10` 建立 Review、ReviewComment、Approval、RenderJob、RenderSegment、ExportPreset。
 - [ ] `P2-11` 建立 UsageRecord、CostRecord、AuditLog。
 - [ ] `P2-12` 为所有核心表增加项目归属、创建/更新时间、软删除或归档策略、版本号和必要索引。
@@ -577,4 +581,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`～`P1-13`、`P2-01`～`P2-08`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进。下一步实施 `P2-09`，建立 Timeline、TimelineVersion、Track、Clip、Transition、Keyframe。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-09`。下一步实施 `P2-10`，建立审核与渲染相关事实源。

@@ -10,6 +10,7 @@
 - `20260919000600_character_location_prop_models` 对应实施计划中的 `P2-06`，建立角色、角色外观、声音配置、场景版本、场景连续性和道具。
 - `20260919000700_generation_provider_models` 对应实施计划中的 `P2-07`，建立生成请求、生成候选和 Provider 异步任务。
 - `20260919000800_workflow_task_models` 对应实施计划中的 `P2-08`，建立工作流定义、运行实例、任务事实源和任务尝试记录。
+- `20260919154745_timeline_models` 对应实施计划中的 `P2-09`，建立时间线、时间线不可变版本、轨道、片段、转场和关键帧。
 
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
@@ -110,3 +111,16 @@ Shot 和 ShotVersion 均追溯到具体 `ScriptVersion`，ShotVersion 可引用 
 - `TaskAttempt`：每次 Worker 执行尝试的状态、输入输出、错误、可重试标记和心跳。
 
 Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、渲染等多类业务资源；`idempotencyKey` 全局唯一以支持幂等创建。Redis Streams 只作为派发通道，任务状态和尝试记录以 PostgreSQL 为事实源，具体消费和恢复策略在 P6 实现。
+
+## P2-09 时间线事实源
+
+`20260919154745_timeline_models` 增加：
+
+- `Timeline`：单集剪辑时间线逻辑实体，维护状态、版本号和当前版本指针。
+- `TimelineVersion`：不可变时间线版本，保存父版本、帧率基准（`timebase`）、总帧数和版本状态。时间位置统一使用整数帧，不使用浮点秒。
+- `Track`：时间线版本内的 Video、Audio、Subtitle 轨道，保存排序、锁定、静音和音量属性。
+- `Clip`：轨道内的片段，保存时间线起点、片段时长、源素材入出点、播放速率、变换和特效；片段可引用固定的 `AssetVersion` 或 `GenerationCandidate`。
+- `Transition`：连接同一时间线版本中前后两个片段，保存转场类型、起始帧、时长和参数。
+- `Keyframe`：片段属性在指定帧的值，支持位置、缩放、旋转、不透明度、音量、调色等属性及 step/linear/bezier 插值。
+
+数据库层通过外键、版本唯一约束和常用查询索引保证引用完整性与版本追溯。`Clip.sourceType` 与两个可选引用字段的一致性、同轨道片段重叠、转场范围及时间线帧范围由后续 API/Render Plan 校验。
