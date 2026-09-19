@@ -68,19 +68,19 @@ V1 不引入 Kafka、Kubernetes、独立微服务体系或独立向量数据库�
 
 ## 4. 领域边界
 
-| 领域 | 事实对象 | 说明 |
-| --- | --- | --- |
-| IP | Project、Season、Episode | 内容组织和生产范围 |
-| 原文 | SourceDocument、SourceDocumentVersion、SourceSegment | 不可变来源与位置引用 |
-| 剧本 | Script、ScriptVersion、Scene、Beat、Dialogue | 可审核的叙事工程 |
-| 分镜 | Shot、ShotVersion、ShotDependency、StoryboardPanel | 可生成的视频镜头设计 |
-| 资产 | Asset、AssetVersion、AssetReference | 角色、场景、道具、声音、媒体 |
-| 生成 | Generation、GenerationCandidate、ProviderJob | Provider 请求与候选结果 |
-| 工作流 | Workflow、WorkflowRun、Task、TaskAttempt | 可重试、可取消、可恢复的任务 |
-| 剪辑 | Timeline、TimelineVersion、Track、Clip、Transition、Keyframe | 非线性剪辑工程 |
-| 审核 | Review、ReviewComment、Approval | 版本和时间码级人工闸门 |
-| 渲染 | RenderJob、RenderSegment、ExportPreset | 增量渲染与导出 |
-| 运营 | UsageRecord、CostRecord、AuditLog | 费用、用量、操作追踪 |
+| 领域   | 事实对象                                                     | 说明                         |
+| ------ | ------------------------------------------------------------ | ---------------------------- |
+| IP     | Project、Season、Episode                                     | 内容组织和生产范围           |
+| 原文   | SourceDocument、SourceDocumentVersion、SourceSegment         | 不可变来源与位置引用         |
+| 剧本   | Script、ScriptVersion、Scene、Beat、Dialogue                 | 可审核的叙事工程             |
+| 分镜   | Shot、ShotVersion、ShotDependency、StoryboardPanel           | 可生成的视频镜头设计         |
+| 资产   | Asset、AssetVersion、AssetReference                          | 角色、场景、道具、声音、媒体 |
+| 生成   | Generation、GenerationCandidate、ProviderJob                 | Provider 请求与候选结果      |
+| 工作流 | Workflow、WorkflowRun、Task、TaskAttempt                     | 可重试、可取消、可恢复的任务 |
+| 剪辑   | Timeline、TimelineVersion、Track、Clip、Transition、Keyframe | 非线性剪辑工程               |
+| 审核   | Review、ReviewComment、Approval                              | 版本和时间码级人工闸门       |
+| 渲染   | RenderJob、RenderSegment、ExportPreset                       | 增量渲染与导出               |
+| 运营   | UsageRecord、CostRecord、AuditLog                            | 费用、用量、操作追踪         |
 
 ## 5. 版本与不可变性
 

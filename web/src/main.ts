@@ -5,7 +5,4 @@ import App from './App.vue';
 
 const queryClient = new QueryClient();
 
-createApp(App)
-  .use(createPinia())
-  .use(VueQueryPlugin, { queryClient })
-  .mount('#app');
+createApp(App).use(createPinia()).use(VueQueryPlugin, { queryClient }).mount('#app');

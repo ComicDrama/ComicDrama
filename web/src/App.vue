@@ -47,7 +47,8 @@ async function checkApi() {
       <article class="card wide">
         <span class="label">生产链路</span>
         <div class="pipeline">
-          <span>原文</span><b>→</b><span>剧本</span><b>→</b><span>分镜</span><b>→</b><span>资产</span><b>→</b><span>成片</span>
+          <span>原文</span><b>→</b><span>剧本</span><b>→</b><span>分镜</span><b>→</b
+          ><span>资产</span><b>→</b><span>成片</span>
         </div>
       </article>
     </section>
@@ -55,22 +56,104 @@ async function checkApi() {
 </template>
 
 <style>
-:root { color: #e9edf5; background: #10131a; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-* { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; }
-.shell { max-width: 1120px; margin: 0 auto; padding: 72px 28px; }
-.hero { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 42px; }
-.eyebrow, .label { color: #8e9bb3; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
-h1 { margin: 10px 0; font-size: clamp(36px, 7vw, 72px); line-height: 1; }
-h2 { margin: 12px 0 8px; font-size: 24px; }
-.subtitle, .card p { color: #9ca8bb; line-height: 1.7; }
-.button { border: 1px solid #4b74ff; border-radius: 10px; padding: 12px 18px; color: #fff; background: #3359da; cursor: pointer; }
-.button:hover { background: #4268ec; }
-.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.card { min-height: 166px; padding: 24px; border: 1px solid #252d3d; border-radius: 18px; background: #171c27; box-shadow: 0 20px 50px #080a0f66; }
-.wide { grid-column: 1 / -1; }
-.pipeline { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 28px; color: #b9c8ee; }
-.pipeline span { padding: 8px 12px; border-radius: 8px; background: #232d43; }
-.pipeline b { color: #7085bc; }
-@media (max-width: 680px) { .hero { align-items: start; flex-direction: column; } .grid { grid-template-columns: 1fr; } .wide { grid-column: auto; } }
+:root {
+  color: #e9edf5;
+  background: #10131a;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+}
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 72px 28px;
+}
+.hero {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 42px;
+}
+.eyebrow,
+.label {
+  color: #8e9bb3;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+h1 {
+  margin: 10px 0;
+  font-size: clamp(36px, 7vw, 72px);
+  line-height: 1;
+}
+h2 {
+  margin: 12px 0 8px;
+  font-size: 24px;
+}
+.subtitle,
+.card p {
+  color: #9ca8bb;
+  line-height: 1.7;
+}
+.button {
+  border: 1px solid #4b74ff;
+  border-radius: 10px;
+  padding: 12px 18px;
+  color: #fff;
+  background: #3359da;
+  cursor: pointer;
+}
+.button:hover {
+  background: #4268ec;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.card {
+  min-height: 166px;
+  padding: 24px;
+  border: 1px solid #252d3d;
+  border-radius: 18px;
+  background: #171c27;
+  box-shadow: 0 20px 50px #080a0f66;
+}
+.wide {
+  grid-column: 1 / -1;
+}
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 28px;
+  color: #b9c8ee;
+}
+.pipeline span {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #232d43;
+}
+.pipeline b {
+  color: #7085bc;
+}
+@media (max-width: 680px) {
+  .hero {
+    align-items: start;
+    flex-direction: column;
+  }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .wide {
+    grid-column: auto;
+  }
+}
 </style>
