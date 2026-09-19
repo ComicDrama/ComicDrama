@@ -60,6 +60,45 @@ enum SourceSegmentType {
   PARAGRAPH
 }
 
+enum ScriptStatus {
+  DRAFT
+  IN_PROGRESS
+  REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+enum ScriptVersionStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  SUPERSEDED
+  ARCHIVED
+}
+
+enum ScriptAdaptationMode {
+  SIMPLE
+  STANDARD
+  COMPLETE
+}
+
+enum BeatType {
+  ACTION
+  REVEAL
+  EMOTION
+  TRANSITION
+  DIALOGUE
+  MONTAGE
+}
+
+enum DialogueType {
+  SPOKEN
+  VOICE_OVER
+  OFF_SCREEN
+  WHISPER
+  SHOUT
+}
+
 model Project {
   id          String        @id @default(uuid()) @db.Uuid
   slug        String        @unique @db.VarChar(120)
@@ -113,7 +152,8 @@ model Episode {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  season Season @relation(fields: [seasonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  season Season  @relation(fields: [seasonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  script Script?
 
   @@unique([seasonId, number])
   @@index([seasonId, status])
@@ -161,9 +201,10 @@ model SourceDocumentVersion {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
-  document  SourceDocument  @relation("SourceDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  currentOf SourceDocument? @relation("SourceDocumentCurrentVersion")
-  segments  SourceSegment[]
+  document       SourceDocument  @relation("SourceDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  currentOf      SourceDocument? @relation("SourceDocumentCurrentVersion")
+  segments       SourceSegment[]
+  scriptVersions ScriptVersion[]
 
   @@unique([documentId, version])
   @@index([documentId, status])
@@ -187,12 +228,133 @@ model SourceSegment {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  version  SourceDocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  parent   SourceSegment?        @relation("SourceSegmentTree", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  children SourceSegment[]       @relation("SourceSegmentTree")
+  version         SourceDocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent          SourceSegment?        @relation("SourceSegmentTree", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  children        SourceSegment[]       @relation("SourceSegmentTree")
+  scriptScenes    Scene[]               @relation("SceneSourceSegment")
+  scriptBeats     Beat[]                @relation("BeatSourceSegment")
+  scriptDialogues Dialogue[]            @relation("DialogueSourceSegment")
 
   @@unique([versionId, ordinal])
   @@index([versionId, type])
   @@index([parentId])
   @@map("source_segments")
+}
+
+model Script {
+  id               String       @id @default(uuid()) @db.Uuid
+  episodeId        String       @unique @db.Uuid
+  title            String       @db.VarChar(200)
+  status           ScriptStatus @default(DRAFT)
+  currentVersionId String?      @unique @db.Uuid
+  archivedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  episode        Episode         @relation(fields: [episodeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versions       ScriptVersion[] @relation("ScriptVersions")
+  currentVersion ScriptVersion?  @relation("ScriptCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([status])
+  @@index([archivedAt])
+  @@map("scripts")
+}
+
+model ScriptVersion {
+  id              String               @id @default(uuid()) @db.Uuid
+  scriptId        String               @db.Uuid
+  version         Int
+  parentVersionId String?              @db.Uuid
+  sourceVersionId String?              @db.Uuid
+  title           String               @db.VarChar(200)
+  synopsis        String?
+  adaptationMode  ScriptAdaptationMode @default(STANDARD)
+  status          ScriptVersionStatus  @default(DRAFT)
+  changeSummary   String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  script        Script                 @relation("ScriptVersions", fields: [scriptId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentVersion ScriptVersion?         @relation("ScriptVersionLineage", fields: [parentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  childVersions ScriptVersion[]        @relation("ScriptVersionLineage")
+  sourceVersion SourceDocumentVersion? @relation(fields: [sourceVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  currentOf     Script?                @relation("ScriptCurrentVersion")
+  scenes        Scene[]
+
+  @@unique([scriptId, version])
+  @@index([scriptId, status])
+  @@index([parentVersionId])
+  @@index([sourceVersionId])
+  @@map("script_versions")
+}
+
+model Scene {
+  id               String   @id @default(uuid()) @db.Uuid
+  scriptVersionId  String   @db.Uuid
+  sourceSegmentId  String?  @db.Uuid
+  ordinal          Int
+  heading          String   @db.VarChar(300)
+  interiorExterior String?  @db.VarChar(20)
+  timeOfDay        String?  @db.VarChar(100)
+  location         String?  @db.VarChar(300)
+  atmosphere       String?
+  summary          String?
+  action           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  scriptVersion ScriptVersion  @relation(fields: [scriptVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceSegment SourceSegment? @relation("SceneSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  beats         Beat[]
+  dialogues     Dialogue[]
+
+  @@unique([scriptVersionId, ordinal])
+  @@index([sourceSegmentId])
+  @@map("scenes")
+}
+
+model Beat {
+  id              String   @id @default(uuid()) @db.Uuid
+  sceneId         String   @db.Uuid
+  sourceSegmentId String?  @db.Uuid
+  ordinal         Int
+  type            BeatType
+  summary         String   @db.Text
+  action          String?
+  emotionalState  String?  @db.VarChar(200)
+  durationSeconds Int?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  scene         Scene          @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceSegment SourceSegment? @relation("BeatSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  dialogues     Dialogue[]
+
+  @@unique([sceneId, ordinal])
+  @@index([sourceSegmentId])
+  @@map("beats")
+}
+
+model Dialogue {
+  id              String       @id @default(uuid()) @db.Uuid
+  sceneId         String       @db.Uuid
+  beatId          String?      @db.Uuid
+  sourceSegmentId String?      @db.Uuid
+  ordinal         Int
+  type            DialogueType @default(SPOKEN)
+  speaker         String       @db.VarChar(200)
+  parenthetical   String?
+  text            String       @db.Text
+  delivery        String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  scene         Scene          @relation(fields: [sceneId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  beat          Beat?          @relation(fields: [beatId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sourceSegment SourceSegment? @relation("DialogueSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([sceneId, ordinal])
+  @@index([beatId])
+  @@index([sourceSegmentId])
+  @@map("dialogues")
 }

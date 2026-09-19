@@ -36,3 +36,15 @@ npx prisma migrate deploy --schema api/prisma/schema.prisma
 - `SourceSegment`：章节、段落等可定位片段，保存字符偏移、行号和父子层级。
 
 `currentVersionId` 只是逻辑文档的当前版本指针；历史版本和片段不会被原地覆盖。原始文件存放在 MinIO/S3，`storageKey` 保存对象路径；`textContent` 保存供检索和追溯使用的规范化文本。
+
+## P2-03 剧本事实源
+
+`20260919000300_script_models` 增加：
+
+- `Script`：单集逻辑剧本，维护当前版本指针。
+- `ScriptVersion`：不可变剧本版本，记录父版本、来源原文版本、改编模式、状态和变更摘要。
+- `Scene`：同一时间/地点下的戏剧场景，按剧本版本排序。
+- `Beat`：场景内的叙事动作、信息揭示或情绪变化。
+- `Dialogue`：场景内的对白，支持说话人、对白类型、语气和 Beat 归属。
+
+Scene、Beat、Dialogue 均可保存 `SourceSegment` 引用；下游内容通过具体 `ScriptVersion` 追溯，不直接依赖会变化的逻辑剧本对象。已被下游引用的版本不得原地修改，修改应创建新的 `ScriptVersion` 并记录 `parentVersionId`。
