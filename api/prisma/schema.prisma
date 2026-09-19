@@ -137,6 +137,32 @@ enum GenerationStrategy {
   KEYFRAME_TO_VIDEO
 }
 
+enum AssetType {
+  CHARACTER
+  LOCATION
+  PROP
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  STYLE
+  OTHER
+}
+
+enum AssetStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum AssetVersionStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  SUPERSEDED
+  ARCHIVED
+}
+
 model Project {
   id          String        @id @default(uuid()) @db.Uuid
   slug        String        @unique @db.VarChar(120)
@@ -148,8 +174,10 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  seasons         Season[]
-  sourceDocuments SourceDocument[]
+  seasons          Season[]
+  sourceDocuments  SourceDocument[]
+  assets           Asset[]
+  assetCollections AssetCollection[]
 
   @@index([status])
   @@index([archivedAt])
@@ -454,13 +482,14 @@ model ShotVersion {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  shot          Shot              @relation("ShotVersions", fields: [shotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  scriptVersion ScriptVersion     @relation(fields: [scriptVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  parentVersion ShotVersion?      @relation("ShotVersionLineage", fields: [parentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  childVersions ShotVersion[]     @relation("ShotVersionLineage")
-  sourceSegment SourceSegment?    @relation("ShotVersionSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  currentOf     Shot?             @relation("ShotCurrentVersion")
-  panels        StoryboardPanel[]
+  shot            Shot              @relation("ShotVersions", fields: [shotId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  scriptVersion   ScriptVersion     @relation(fields: [scriptVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentVersion   ShotVersion?      @relation("ShotVersionLineage", fields: [parentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  childVersions   ShotVersion[]     @relation("ShotVersionLineage")
+  sourceSegment   SourceSegment?    @relation("ShotVersionSourceSegment", fields: [sourceSegmentId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  currentOf       Shot?             @relation("ShotCurrentVersion")
+  panels          StoryboardPanel[]
+  assetReferences AssetReference[]
 
   @@unique([shotId, version])
   @@index([scriptVersionId, status])
@@ -506,4 +535,118 @@ model StoryboardPanel {
   @@unique([shotVersionId, ordinal])
   @@index([shotVersionId, type])
   @@map("storyboard_panels")
+}
+
+model Asset {
+  id               String      @id @default(uuid()) @db.Uuid
+  projectId        String?     @db.Uuid
+  name             String      @db.VarChar(200)
+  slug             String?     @db.VarChar(120)
+  type             AssetType
+  status           AssetStatus @default(DRAFT)
+  currentVersionId String?     @unique @db.Uuid
+  archivedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  project        Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  versions       AssetVersion[]        @relation("AssetVersions")
+  currentVersion AssetVersion?         @relation("AssetCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  collections    AssetCollectionItem[]
+  references     AssetReference[]
+
+  @@unique([projectId, slug])
+  @@index([projectId, type, status])
+  @@index([status])
+  @@index([archivedAt])
+  @@map("assets")
+}
+
+model AssetVersion {
+  id              String             @id @default(uuid()) @db.Uuid
+  assetId         String             @db.Uuid
+  parentVersionId String?            @db.Uuid
+  version         Int
+  status          AssetVersionStatus @default(DRAFT)
+  fileName        String?            @db.VarChar(255)
+  mimeType        String?            @db.VarChar(120)
+  byteSize        BigInt?
+  sha256          String?            @db.Char(64)
+  storageKey      String?            @db.VarChar(500)
+  width           Int?
+  height          Int?
+  durationMs      Int?
+  metadata        Json?
+  prompt          String?
+  changeSummary   String?
+  createdAt       DateTime           @default(now())
+
+  asset          Asset                 @relation("AssetVersions", fields: [assetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentVersion  AssetVersion?         @relation("AssetVersionLineage", fields: [parentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  childVersions  AssetVersion[]        @relation("AssetVersionLineage")
+  currentOf      Asset?                @relation("AssetCurrentVersion")
+  references     AssetReference[]
+  collectionPins AssetCollectionItem[]
+
+  @@unique([assetId, version])
+  @@index([status])
+  @@index([parentVersionId])
+  @@index([sha256])
+  @@map("asset_versions")
+}
+
+model AssetCollection {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String?  @db.Uuid
+  name      String   @db.VarChar(200)
+  slug      String?  @db.VarChar(120)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  items   AssetCollectionItem[]
+
+  @@unique([projectId, slug])
+  @@index([projectId])
+  @@map("asset_collections")
+}
+
+model AssetCollectionItem {
+  id              String   @id @default(uuid()) @db.Uuid
+  collectionId    String   @db.Uuid
+  assetId         String   @db.Uuid
+  pinnedVersionId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+
+  collection    AssetCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  asset         Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  pinnedVersion AssetVersion?   @relation(fields: [pinnedVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([collectionId, assetId])
+  @@index([assetId])
+  @@index([pinnedVersionId])
+  @@map("asset_collection_items")
+}
+
+model AssetReference {
+  id             String   @id @default(uuid()) @db.Uuid
+  assetId        String   @db.Uuid
+  assetVersionId String   @db.Uuid
+  targetType     String   @db.VarChar(50)
+  targetId       String   @db.Uuid
+  role           String?  @db.VarChar(80)
+  notes          String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  asset         Asset        @relation(fields: [assetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assetVersion  AssetVersion @relation(fields: [assetVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  shotVersion   ShotVersion? @relation(fields: [shotVersionId], references: [id])
+  shotVersionId String?      @db.Uuid
+
+  @@unique([assetVersionId, targetType, targetId, role])
+  @@index([assetId, targetType])
+  @@index([assetVersionId])
+  @@index([targetType, targetId])
+  @@map("asset_references")
 }

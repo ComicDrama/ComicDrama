@@ -4,6 +4,9 @@
 
 - `20260919000100_init_project_hierarchy` 对应实施计划中的 `P2-01`，建立 `projects`、`seasons`、`episodes`。
 - `20260919000200_source_documents` 对应实施计划中的 `P2-02`，建立 `source_documents`、`source_document_versions`、`source_segments`。
+- `20260919000300_script_models` 对应实施计划中的 `P2-03`，建立剧本、场景、节拍和对白事实源。
+- `20260919000400_shot_models` 对应实施计划中的 `P2-04`，建立镜头、镜头版本、镜头依赖和分镜面板。
+- `20260919000500_asset_models` 对应实施计划中的 `P2-05`，建立逻辑资产、不可变资产版本、资产集合和下游引用。
 
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
@@ -59,3 +62,14 @@ Scene、Beat、Dialogue 均可保存 `SourceSegment` 引用；下游内容通过
 - `StoryboardPanel`：镜头版本的分镜面板及对象存储元数据。
 
 Shot 和 ShotVersion 均追溯到具体 `ScriptVersion`，ShotVersion 可引用 `SourceSegment`；角色、场景和道具的具体资产引用字段先以 JSON 保存，待后续资产模型完成后再建立强类型关联。
+
+## P2-05 资产事实源
+
+`20260919000500_asset_models` 增加：
+
+- `Asset`：可复用的逻辑资产，支持项目资产和跨项目共享资产，并维护当前版本指针。
+- `AssetVersion`：不可变资产版本，记录父版本、对象存储键、SHA-256、MIME、尺寸、时长和生成元数据；已被引用的版本不得原地修改。
+- `AssetCollection` / `AssetCollectionItem`：项目级或共享资产库及其成员，可选固定到具体资产版本。
+- `AssetReference`：以 `assetVersionId` 固定下游使用的资产版本；`targetType`/`targetId` 支持 `SHOT_VERSION`、`CHARACTER`、`LOCATION`、`PROP` 等多态目标，当前已对 `ShotVersion` 建立外键。
+
+数据库只保存资产元数据、哈希和对象存储 key，大文件进入 MinIO/S3；PostgreSQL 保存资产版本、集合和引用事实。
