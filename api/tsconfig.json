@@ -1,0 +1,17 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "dist",
+    "declaration": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "noEmit": false,
+    "baseUrl": ".",
+    "paths": {
+      "@comicdrama/contracts": ["../packages/contracts/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

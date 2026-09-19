@@ -1,0 +1,13 @@
+[project]
+name = "comicdrama-workers"
+version = "0.1.0"
+description = "AI漫剧平台 Python workers"
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

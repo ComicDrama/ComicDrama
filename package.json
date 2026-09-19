@@ -1,0 +1,15 @@
+{
+  "name": "comicdrama-platform",
+  "private": true,
+  "workspaces": ["web", "api", "packages/*"],
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
+}
