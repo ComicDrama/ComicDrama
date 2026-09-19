@@ -17,6 +17,9 @@ jobs:
         with:
           python-version: '3.13'
       - run: npm ci
+      - run: npm run prisma:validate --workspace api
+        env:
+          DATABASE_URL: postgresql://comicdrama:change-me@localhost:5432/comicdrama?schema=public
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm run build --workspace web

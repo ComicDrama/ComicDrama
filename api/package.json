@@ -7,19 +7,24 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "prisma:validate": "prisma validate --schema prisma/schema.prisma",
+    "prisma:format": "prisma format --schema prisma/schema.prisma",
+    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.11",
     "@nestjs/core": "^11.0.11",
     "@nestjs/platform-express": "^11.0.11",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "@prisma/client": "^6.19.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.5",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "prisma": "^6.19.0"
   }
 }

@@ -16,6 +16,7 @@ services:
       context: ../api
     environment:
       API_PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-comicdrama}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-comicdrama}?schema=public
     ports:
       - '${API_PORT:-3000}:3000'
     healthcheck:

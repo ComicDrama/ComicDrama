@@ -217,10 +217,11 @@
   - 开始日期：2026-09-19。
   - 实现位置：`api/src/common/trace-id.middleware.ts`、`docs/api-contracts.md`。
   - 当前状态：已实现请求 traceId 生成/透传、响应头和 API 错误格式约定；结构化日志、错误上报和 Worker 任务日志格式将在 P6 任务协议阶段补齐。
-- [~] `P1-12` 建立最小 CI：安装、Lint、类型检查、单元测试、构建、数据库迁移校验。
-  - 开始日期：2026-09-19。
+- [x] `P1-12` 建立最小 CI：安装、Lint、类型检查、单元测试、构建、数据库迁移校验。
+  - 完成日期：2026-09-19。
   - 实现位置：`.github/workflows/ci.yml`、`package-lock.json`。
-  - 当前状态：已配置 Node.js 22、Python 3.13、`npm ci`、类型检查、前端构建、API 构建和 Python 编译；本次 CI 失败原因为仓库缺少根目录 `package-lock.json`，锁文件已补生成，待提交并重新运行 CI。Lint、单元测试和数据库迁移校验将在对应依赖/迁移建立后补齐。
+  - 验证结果：GitHub Actions `static-checks` 已通过；CI 已执行 Node.js 22、Python 3.13、`npm ci`、Prettier 格式检查、类型检查、前端构建、API 构建和 Python 编译。
+  - 备注：Prisma Schema 校验已加入当前分支；Lint、单元测试和真实数据库迁移执行将在对应模块完成后继续扩展。
 - [!] `P1-13` 完成“新机器一键启动”验证。
   - 阻塞原因：当前机器未检测到 Docker CLI（`DOCKER_NOT_FOUND`）。
   - 解除条件：安装 Docker Desktop 后执行 `docker compose -f infra/docker-compose.yml up --build`，完成全服务健康检查和测试数据写入。
@@ -232,7 +233,11 @@
 
 ## P2.1 Prisma Schema 与迁移
 
-- [ ] `P2-01` 建立 Project、Season、Episode。
+- [x] `P2-01` 建立 Project、Season、Episode。
+  - 完成日期：2026-09-19。
+  - 实现位置：`E:\Project\ComicDrama\api\prisma\schema.prisma`、`E:\Project\ComicDrama\api\prisma\migrations\20260919000100_init_project_hierarchy\migration.sql`。
+  - 验证方式：设置 `DATABASE_URL` 后执行 `npx prisma format --schema api/prisma/schema.prisma` 和 `npx prisma validate --schema api/prisma/schema.prisma`；CI 增加同等 Schema 校验。
+  - 验证结果：通过。Project、Season、Episode 已具备 UUID 主键、状态、版本号、时间字段、归档字段、父子外键和层级编号唯一约束。
 - [ ] `P2-02` 建立 SourceDocument、SourceDocumentVersion、SourceSegment。
 - [ ] `P2-03` 建立 Script、ScriptVersion、Scene、Beat、Dialogue。
 - [ ] `P2-04` 建立 Shot、ShotVersion、ShotDependency、StoryboardPanel。
@@ -535,4 +540,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`；`P0-09`、`P1-05`、`P1-10`～`P1-12` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。当前立即行动：提交根目录 `package-lock.json` 和 Python 3.13/CI 配置，重新运行 GitHub Actions；CI 通过后进入 `P2-01`～`P2-04` 的 Prisma 数据模型与 PostgreSQL 迁移基础。
+当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`；`P0-09`、`P1-05`、`P1-10`～`P1-12` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。当前已完成 CI 和 `P2-01`；下一步实施 `P2-02`，建立 SourceDocument、SourceDocumentVersion、SourceSegment 原文事实源模型，并继续补齐迁移校验。
