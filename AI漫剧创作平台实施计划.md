@@ -238,7 +238,12 @@
   - 实现位置：`E:\Project\ComicDrama\api\prisma\schema.prisma`、`E:\Project\ComicDrama\api\prisma\migrations\20260919000100_init_project_hierarchy\migration.sql`。
   - 验证方式：设置 `DATABASE_URL` 后执行 `npx prisma format --schema api/prisma/schema.prisma` 和 `npx prisma validate --schema api/prisma/schema.prisma`；CI 增加同等 Schema 校验。
   - 验证结果：通过。Project、Season、Episode 已具备 UUID 主键、状态、版本号、时间字段、归档字段、父子外键和层级编号唯一约束。
-- [ ] `P2-02` 建立 SourceDocument、SourceDocumentVersion、SourceSegment。
+- [x] `P2-02` 建立 SourceDocument、SourceDocumentVersion、SourceSegment。
+  - 完成日期：2026-09-19。
+  - 实现位置：`E:\Project\ComicDrama\api\prisma\schema.prisma`、`E:\Project\ComicDrama\api\prisma\migrations\20260919000200_source_documents\migration.sql`、`E:\Project\ComicDrama\api\prisma\migrations\migration_lock.toml`、`E:\Project\ComicDrama\api\prisma\README.md`。
+  - 验证方式：执行 `npx prisma format --schema api/prisma/schema.prisma`、`npx prisma validate --schema api/prisma/schema.prisma`、`npx prettier --check .` 和 `git diff --check`。
+  - 验证结果：通过。Schema 校验、全仓库格式检查和 diff 空白检查均通过；迁移目录已补齐 PostgreSQL migration lock。
+  - 备注：原始文件进入 MinIO/S3，数据库仅保存元数据、对象存储键和规范化文本；SourceDocumentVersion 不可变，`currentVersionId` 仅作为当前版本指针。真实 PostgreSQL `migrate deploy` 与迁移差异检查待 Docker/PostgreSQL 可用后执行。
 - [ ] `P2-03` 建立 Script、ScriptVersion、Scene、Beat、Dialogue。
 - [ ] `P2-04` 建立 Shot、ShotVersion、ShotDependency、StoryboardPanel。
 - [ ] `P2-05` 建立 Asset、AssetVersion、AssetCollection、AssetReference。
@@ -540,4 +545,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`；`P0-09`、`P1-05`、`P1-10`～`P1-12` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。当前已完成 CI 和 `P2-01`；下一步实施 `P2-02`，建立 SourceDocument、SourceDocumentVersion、SourceSegment 原文事实源模型，并继续补齐迁移校验。
+当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`、`P2-01`～`P2-02`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。下一步实施 `P2-03`，建立 Script、ScriptVersion、Scene、Beat、Dialogue，并保持剧本版本不可变和原文来源可追溯。

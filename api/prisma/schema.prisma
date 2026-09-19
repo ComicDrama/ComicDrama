@@ -27,6 +27,39 @@ enum EpisodeStatus {
   ARCHIVED
 }
 
+enum SourceDocumentType {
+  TXT
+  MARKDOWN
+  DOCX
+  EPUB
+  PDF
+  FOUNTAIN
+  FINAL_DRAFT_XML
+  UNKNOWN
+}
+
+enum SourceDocumentStatus {
+  DRAFT
+  IMPORTING
+  READY
+  FAILED
+  ARCHIVED
+}
+
+enum SourceVersionStatus {
+  IMPORTING
+  PARSING
+  READY
+  FAILED
+}
+
+enum SourceSegmentType {
+  DOCUMENT
+  CHAPTER
+  SECTION
+  PARAGRAPH
+}
+
 model Project {
   id          String        @id @default(uuid()) @db.Uuid
   slug        String        @unique @db.VarChar(120)
@@ -38,7 +71,8 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  seasons Season[]
+  seasons         Season[]
+  sourceDocuments SourceDocument[]
 
   @@index([status])
   @@index([archivedAt])
@@ -85,4 +119,80 @@ model Episode {
   @@index([seasonId, status])
   @@index([archivedAt])
   @@map("episodes")
+}
+
+model SourceDocument {
+  id               String               @id @default(uuid()) @db.Uuid
+  projectId        String               @db.Uuid
+  name             String               @db.VarChar(200)
+  documentType     SourceDocumentType
+  status           SourceDocumentStatus @default(DRAFT)
+  currentVersionId String?              @unique @db.Uuid
+  archivedAt       DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  project        Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versions       SourceDocumentVersion[] @relation("SourceDocumentVersions")
+  currentVersion SourceDocumentVersion?  @relation("SourceDocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([projectId, status])
+  @@index([archivedAt])
+  @@map("source_documents")
+}
+
+model SourceDocumentVersion {
+  id            String              @id @default(uuid()) @db.Uuid
+  documentId    String              @db.Uuid
+  version       Int
+  fileName      String              @db.VarChar(255)
+  fileExtension String?             @db.VarChar(20)
+  mimeType      String?             @db.VarChar(120)
+  byteSize      BigInt?
+  sha256        String              @db.Char(64)
+  storageKey    String              @db.VarChar(500)
+  textContent   String?             @db.Text
+  parserName    String?             @db.VarChar(100)
+  parserVersion String?             @db.VarChar(50)
+  status        SourceVersionStatus @default(IMPORTING)
+  errorMessage  String?
+  importedAt    DateTime            @default(now())
+  parsedAt      DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  document  SourceDocument  @relation("SourceDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  currentOf SourceDocument? @relation("SourceDocumentCurrentVersion")
+  segments  SourceSegment[]
+
+  @@unique([documentId, version])
+  @@index([documentId, status])
+  @@index([sha256])
+  @@map("source_document_versions")
+}
+
+model SourceSegment {
+  id          String            @id @default(uuid()) @db.Uuid
+  versionId   String            @db.Uuid
+  parentId    String?           @db.Uuid
+  type        SourceSegmentType
+  ordinal     Int
+  title       String?           @db.VarChar(300)
+  content     String            @db.Text
+  startOffset Int
+  endOffset   Int
+  startLine   Int?
+  endLine     Int?
+  metadata    Json?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  version  SourceDocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent   SourceSegment?        @relation("SourceSegmentTree", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  children SourceSegment[]       @relation("SourceSegmentTree")
+
+  @@unique([versionId, ordinal])
+  @@index([versionId, type])
+  @@index([parentId])
+  @@map("source_segments")
 }
