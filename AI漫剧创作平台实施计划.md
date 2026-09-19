@@ -276,7 +276,12 @@
   - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；在 Docker PostgreSQL 上执行 `prisma migrate deploy` 和 `prisma migrate status`；执行 Prettier、类型检查、前后端构建、Python 编译和 `git diff --check`。
   - 验证结果：通过。Generation 保存目标、输入版本快照、Prompt、模型、参数、成本和候选选择；GenerationCandidate 保存多候选结果及对象存储元数据；ProviderJob 保存异步 Provider 外部任务、重试谱系、幂等键、原始请求/响应和轮询状态；第 7 个迁移已成功应用，数据库状态为最新。
   - 备注：`targetType`/`targetId` 为跨资源生成目标的多态引用，后续 API 层根据目标类型校验资源归属；候选结果可在人工选定后通过 `assetVersionId` 固化为可复用资产版本。
-- [ ] `P2-08` 建立 Workflow、WorkflowRun、Task、TaskAttempt。
+- [x] `P2-08` 建立 Workflow、WorkflowRun、Task、TaskAttempt。
+  - 完成日期：2026-09-19。
+  - 实现位置：`E:\Project\ComicDrama\api\prisma\schema.prisma`、`E:\Project\ComicDrama\api\prisma\migrations\20260919000800_workflow_task_models\migration.sql`、`E:\Project\ComicDrama\api\prisma\README.md`。
+  - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；在 Docker PostgreSQL 上执行 `prisma migrate deploy` 和 `prisma migrate status`；执行 Prettier、类型检查、前后端构建、Python 编译和 `git diff --check`。
+  - 验证结果：通过。Workflow 保存版本化定义；WorkflowRun 保存运行快照和状态；Task 保存资源、幂等键、优先级、重试上限、锁定/心跳和 traceId；TaskAttempt 保存每次 Worker 尝试、输出、错误和心跳；第 8 个迁移已成功应用，数据库状态为最新。
+  - 备注：Task 的 Redis Streams 派发、认领、超时恢复、幂等消费和取消逻辑属于 P6 实施范围；本步骤先建立 PostgreSQL 事实源和后续协议所需字段。
 - [ ] `P2-09` 建立 Timeline、TimelineVersion、Track、Clip、Transition、Keyframe。
 - [ ] `P2-10` 建立 Review、ReviewComment、Approval、RenderJob、RenderSegment、ExportPreset。
 - [ ] `P2-11` 建立 UsageRecord、CostRecord、AuditLog。
@@ -572,4 +577,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`～`P1-13`、`P2-01`～`P2-07`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进。下一步实施 `P2-08`，建立 Workflow、WorkflowRun、Task、TaskAttempt，并将生成任务与后续 Redis Streams Worker 协议衔接。
+当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`、`P1-12`～`P1-13`、`P2-01`～`P2-08`；`P0-09`、`P1-05`、`P1-10`～`P1-11` 正在推进。下一步实施 `P2-09`，建立 Timeline、TimelineVersion、Track、Clip、Transition、Keyframe。

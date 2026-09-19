@@ -9,6 +9,7 @@
 - `20260919000500_asset_models` 对应实施计划中的 `P2-05`，建立逻辑资产、不可变资产版本、资产集合和下游引用。
 - `20260919000600_character_location_prop_models` 对应实施计划中的 `P2-06`，建立角色、角色外观、声音配置、场景版本、场景连续性和道具。
 - `20260919000700_generation_provider_models` 对应实施计划中的 `P2-07`，建立生成请求、生成候选和 Provider 异步任务。
+- `20260919000800_workflow_task_models` 对应实施计划中的 `P2-08`，建立工作流定义、运行实例、任务事实源和任务尝试记录。
 
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
@@ -98,3 +99,14 @@ Shot 和 ShotVersion 均追溯到具体 `ScriptVersion`，ShotVersion 可引用 
 - `ProviderJob`：Provider 侧异步任务事实源，保存外部任务 ID、幂等键、请求/响应归档、轮询状态、重试父子谱系和候选关联。
 
 `Generation.targetType` / `targetId` 用于支持 `SHOT_VERSION`、`CHARACTER`、`LOCATION`、`PROP` 等多态生成目标；API 层必须校验目标存在、项目归属和输入版本一致性。Provider 原始请求/响应允许归档在数据库 JSON 字段中，生产环境的大型结果文件仍只进入 MinIO/S3。
+
+## P2-08 工作流与任务事实源
+
+`20260919000800_workflow_task_models` 增加：
+
+- `Workflow`：版本化工作流定义和项目归属。
+- `WorkflowRun`：工作流运行快照、上下文、结果、状态和 traceId。
+- `Task`：任务事实源，保存任务类型、业务资源、输入版本、幂等键、优先级、重试参数、锁定信息、心跳和结果。
+- `TaskAttempt`：每次 Worker 执行尝试的状态、输入输出、错误、可重试标记和心跳。
+
+Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、渲染等多类业务资源；`idempotencyKey` 全局唯一以支持幂等创建。Redis Streams 只作为派发通道，任务状态和尝试记录以 PostgreSQL 为事实源，具体消费和恢复策略在 P6 实现。
