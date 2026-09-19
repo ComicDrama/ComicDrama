@@ -181,13 +181,15 @@
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\api`，已建立 NestJS 模块、健康检查、版本接口和全局 API 前缀。
   - 验证结果：NestJS 源码结构和 Docker 构建流程已创建；依赖安装后的编译待本地 npm install 或 CI 执行。
-- [x] `P1-04` 初始化 Python 3.12 Worker 代码库，并按能力划分 `llm-worker`、`image-worker`、`video-worker`、`audio-worker`、`render-worker`、`qc-worker`。
+- [x] `P1-04` 初始化 Python 3.13 Worker 代码库，并按能力划分 `llm-worker`、`image-worker`、`video-worker`、`audio-worker`、`render-worker`、`qc-worker`。
   - 完成日期：2026-09-19。
-  - 实现位置：`E:\Project\ComicDrama\workers`，已建立 Python 3.12 运行配置和 llm/image/video/audio/render/qc Worker 包目录。
-  - 验证结果：`python -m py_compile workers/src/worker.py` 已通过。
+  - 实现位置：`E:\Project\ComicDrama\workers`，已建立 Python 3.13 运行配置和 llm/image/video/audio/render/qc Worker 包目录。
+  - 验证结果：`python -m compileall -q workers/src` 已通过；CI 使用 Python 3.13。
 - [~] `P1-05` 统一 TypeScript/Python 的格式化、Lint、类型检查和提交检查。
-  - 当前状态：已统一 EditorConfig、Prettier、TypeScript 编译脚本、Python Ruff/Pytest 配置入口；ESLint/Ruff 的实际依赖和规则集待补齐。
-  - 实现位置：根目录 `.editorconfig`、`.prettierrc.json`、`tsconfig.base.json`、`workers/pyproject.toml`。
+  - 开始日期：2026-09-19。
+  - 实现位置：`.editorconfig`、`.prettierrc.json`、`tsconfig.base.json`、各 workspace 的 `typecheck/build` 脚本、`workers/pyproject.toml`。
+  - 当前状态：已统一 EditorConfig、Prettier、TypeScript 编译脚本、Python Ruff/Pytest 配置入口；ESLint/Ruff 的实际依赖和规则集、提交前自动检查仍待补齐。
+  - 下一步：在 P2 基础模型完成后补充可执行的 lint/test 门禁，并纳入 CI。
 - [x] `P1-06` 建立共享 DTO、事件类型、错误码和 API 响应格式。
   - 完成日期：2026-09-19。
   - 实现位置：`E:\Project\ComicDrama\packages\contracts\src`，已建立 API 响应、任务、Provider 契约；Python 对应任务协议位于 `workers/src/common/protocol.py`。
@@ -208,14 +210,17 @@
   - 实现位置：`infra/postgres/init/001-init.sql`、`infra/minio/buckets.md`、`infra/redis/streams.md`、`infra/docker-compose.yml` 的 `minio-init` 服务。
   - 验证结果：PostgreSQL 初始化、MinIO Bucket 初始化和 Redis Stream 命名约定已定义；容器执行待 Docker 环境可用后验证。
 - [~] `P1-10` 实现所有服务健康检查和版本信息接口。
-  - 当前状态：已实现 API `/api/health`、`/api/version`，并为 web、api、postgres、redis、minio 配置 Compose 健康检查；Worker 和 nginx 的运行验证待 Docker 启动后完成。
+  - 开始日期：2026-09-19。
   - 实现位置：`api/src/health`、`infra/docker-compose.yml`。
+  - 当前状态：API 已提供 `/api/health` 和 `/api/version`；Compose 已配置 web、api、postgres、redis、minio 健康检查。Worker、nginx 以及容器内端到端健康验证待 Docker 环境可用后完成。
 - [~] `P1-11` 建立基础日志、traceId、错误上报和任务日志格式。
-  - 当前状态：已实现请求 traceId 中间件和响应头；结构化日志、错误上报和 Worker 任务日志格式待 P6 任务协议阶段补齐。
+  - 开始日期：2026-09-19。
   - 实现位置：`api/src/common/trace-id.middleware.ts`、`docs/api-contracts.md`。
+  - 当前状态：已实现请求 traceId 生成/透传、响应头和 API 错误格式约定；结构化日志、错误上报和 Worker 任务日志格式将在 P6 任务协议阶段补齐。
 - [~] `P1-12` 建立最小 CI：安装、Lint、类型检查、单元测试、构建、数据库迁移校验。
-  - 当前状态：已创建 GitHub Actions 最小 CI，包含 Node/Python 环境、安装、类型检查、前端构建、API 构建和 Python 编译；Lint、单元测试和数据库迁移校验待对应依赖/迁移建立后补齐。
-  - 实现位置：`.github/workflows/ci.yml`。
+  - 开始日期：2026-09-19。
+  - 实现位置：`.github/workflows/ci.yml`、`package-lock.json`。
+  - 当前状态：已配置 Node.js 22、Python 3.13、`npm ci`、类型检查、前端构建、API 构建和 Python 编译；本次 CI 失败原因为仓库缺少根目录 `package-lock.json`，锁文件已补生成，待提交并重新运行 CI。Lint、单元测试和数据库迁移校验将在对应依赖/迁移建立后补齐。
 - [!] `P1-13` 完成“新机器一键启动”验证。
   - 阻塞原因：当前机器未检测到 Docker CLI（`DOCKER_NOT_FOUND`）。
   - 解除条件：安装 Docker Desktop 后执行 `docker compose -f infra/docker-compose.yml up --build`，完成全服务健康检查和测试数据写入。
@@ -530,4 +535,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`；`P0-09`、`P1-05`、`P1-10`～`P1-12` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。下一步继续补齐静态检查、日志和 CI，并在 Docker 可用后完成一键启动验证。
+当前已完成：`P0-01`～`P0-08`、`P1-01`～`P1-04`、`P1-06`～`P1-09`；`P0-09`、`P1-05`、`P1-10`～`P1-12` 正在推进，`P1-13` 因本机缺少 Docker CLI 阻塞。当前立即行动：提交根目录 `package-lock.json` 和 Python 3.13/CI 配置，重新运行 GitHub Actions；CI 通过后进入 `P2-01`～`P2-04` 的 Prisma 数据模型与 PostgreSQL 迁移基础。
