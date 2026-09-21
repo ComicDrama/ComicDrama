@@ -448,7 +448,11 @@ model Project {
   updatedAt   DateTime      @updatedAt
 
   seasons          Season[]
+  episodes         Episode[]
   sourceDocuments  SourceDocument[]
+  scripts          Script[]
+  shots            Shot[]
+  timelines        Timeline[]
   assets           Asset[]
   assetCollections AssetCollection[]
   characters       Character[]
@@ -487,6 +491,7 @@ model Season {
 
   @@unique([projectId, number])
   @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([archivedAt])
   @@map("seasons")
 }
@@ -494,6 +499,7 @@ model Season {
 model Episode {
   id              String        @id @default(uuid()) @db.Uuid
   seasonId        String        @db.Uuid
+  projectId       String        @db.Uuid
   number          Int
   title           String?       @db.VarChar(200)
   synopsis        String?
@@ -505,11 +511,14 @@ model Episode {
   updatedAt       DateTime      @updatedAt
 
   season    Season     @relation(fields: [seasonId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   script    Script?
   timelines Timeline[]
 
   @@unique([seasonId, number])
   @@index([seasonId, status])
+  @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([archivedAt])
   @@map("episodes")
 }
@@ -520,6 +529,7 @@ model SourceDocument {
   name             String               @db.VarChar(200)
   documentType     SourceDocumentType
   status           SourceDocumentStatus @default(DRAFT)
+  version          Int                  @default(1)
   currentVersionId String?              @unique @db.Uuid
   archivedAt       DateTime?
   createdAt        DateTime             @default(now())
@@ -530,6 +540,7 @@ model SourceDocument {
   currentVersion SourceDocumentVersion?  @relation("SourceDocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([archivedAt])
   @@map("source_documents")
 }
@@ -597,19 +608,24 @@ model SourceSegment {
 
 model Script {
   id               String       @id @default(uuid()) @db.Uuid
+  projectId        String       @db.Uuid
   episodeId        String       @unique @db.Uuid
   title            String       @db.VarChar(200)
   status           ScriptStatus @default(DRAFT)
+  version          Int          @default(1)
   currentVersionId String?      @unique @db.Uuid
   archivedAt       DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
   episode        Episode         @relation(fields: [episodeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   versions       ScriptVersion[] @relation("ScriptVersions")
   currentVersion ScriptVersion?  @relation("ScriptCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([status])
+  @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([archivedAt])
   @@map("scripts")
 }
@@ -719,16 +735,19 @@ model Dialogue {
 
 model Shot {
   id               String     @id @default(uuid()) @db.Uuid
+  projectId        String     @db.Uuid
   scriptVersionId  String     @db.Uuid
   beatId           String     @db.Uuid
   ordinal          Int
   title            String?    @db.VarChar(200)
   status           ShotStatus @default(DRAFT)
+  version          Int        @default(1)
   currentVersionId String?    @unique @db.Uuid
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   archivedAt       DateTime?
 
+  project        Project          @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   scriptVersion  ScriptVersion    @relation(fields: [scriptVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   beat           Beat             @relation(fields: [beatId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   versions       ShotVersion[]    @relation("ShotVersions")
@@ -738,6 +757,8 @@ model Shot {
 
   @@unique([beatId, ordinal])
   @@index([scriptVersionId, status])
+  @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([status])
   @@index([archivedAt])
   @@map("shots")
@@ -931,6 +952,7 @@ model TaskAttempt {
   heartbeatAt  DateTime?
   finishedAt   DateTime?
   createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
@@ -965,6 +987,7 @@ model Generation {
   errorCode           String?          @db.VarChar(80)
   errorMessage        String?
   createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
   startedAt           DateTime?
   completedAt         DateTime?
 
@@ -1003,6 +1026,7 @@ model GenerationCandidate {
   failureCode      String?                   @db.VarChar(80)
   failureMessage   String?
   createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
   selectedAt       DateTime?
 
   generation    Generation    @relation("GenerationCandidates", fields: [generationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
@@ -1071,6 +1095,7 @@ model Character {
   appearanceDescription String?
   costumeDescription    String?
   status                CharacterStatus @default(DRAFT)
+  version               Int             @default(1)
   archivedAt            DateTime?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
@@ -1084,7 +1109,9 @@ model Character {
 
   @@unique([projectId, slug])
   @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([status])
+  @@index([archivedAt])
   @@map("characters")
 }
 
@@ -1152,6 +1179,7 @@ model Location {
   locationType     String?        @db.VarChar(120)
   description      String?
   status           LocationStatus @default(DRAFT)
+  version          Int            @default(1)
   archivedAt       DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -1164,7 +1192,9 @@ model Location {
 
   @@unique([projectId, slug])
   @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([status])
+  @@index([archivedAt])
   @@map("locations")
 }
 
@@ -1239,6 +1269,7 @@ model Prop {
   dimensions       Json?
   defaultState     String?
   status           PropStatus @default(DRAFT)
+  version          Int        @default(1)
   archivedAt       DateTime?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
@@ -1250,7 +1281,9 @@ model Prop {
 
   @@unique([projectId, slug])
   @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([status])
+  @@index([archivedAt])
   @@map("props")
 }
 
@@ -1261,6 +1294,7 @@ model Asset {
   slug             String?     @db.VarChar(120)
   type             AssetType
   status           AssetStatus @default(DRAFT)
+  version          Int         @default(1)
   currentVersionId String?     @unique @db.Uuid
   archivedAt       DateTime?
   createdAt        DateTime    @default(now())
@@ -1277,6 +1311,7 @@ model Asset {
 
   @@unique([projectId, slug])
   @@index([projectId, type, status])
+  @@index([projectId, archivedAt])
   @@index([status])
   @@index([archivedAt])
   @@map("assets")
@@ -1322,18 +1357,22 @@ model AssetVersion {
 }
 
 model AssetCollection {
-  id        String   @id @default(uuid()) @db.Uuid
-  projectId String?  @db.Uuid
-  name      String   @db.VarChar(200)
-  slug      String?  @db.VarChar(120)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(uuid()) @db.Uuid
+  projectId  String?   @db.Uuid
+  name       String    @db.VarChar(200)
+  slug       String?   @db.VarChar(120)
+  version    Int       @default(1)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   project Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   items   AssetCollectionItem[]
 
   @@unique([projectId, slug])
   @@index([projectId])
+  @@index([projectId, archivedAt])
+  @@index([archivedAt])
   @@map("asset_collections")
 }
 
@@ -1379,6 +1418,7 @@ model AssetReference {
 
 model Timeline {
   id               String         @id @default(uuid()) @db.Uuid
+  projectId        String         @db.Uuid
   episodeId        String         @db.Uuid
   name             String         @db.VarChar(200)
   status           TimelineStatus @default(DRAFT)
@@ -1389,11 +1429,14 @@ model Timeline {
   updatedAt        DateTime       @updatedAt
 
   episode        Episode           @relation(fields: [episodeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   versions       TimelineVersion[] @relation("TimelineVersions")
   currentVersion TimelineVersion?  @relation("TimelineCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@unique([episodeId, name])
   @@index([episodeId, status])
+  @@index([projectId, status])
+  @@index([projectId, archivedAt])
   @@index([archivedAt])
   @@map("timelines")
 }
@@ -1622,6 +1665,7 @@ model RenderSegment {
   errorMessage String?
   metadata     Json?
   createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   startedAt    DateTime?
   completedAt  DateTime?
 
@@ -1634,29 +1678,33 @@ model RenderSegment {
 }
 
 model ExportPreset {
-  id              String   @id @default(uuid()) @db.Uuid
-  projectId       String?  @db.Uuid
-  name            String   @db.VarChar(200)
-  slug            String   @db.VarChar(120)
-  container       String   @db.VarChar(40)
-  videoCodec      String?  @db.VarChar(80)
-  audioCodec      String?  @db.VarChar(80)
+  id              String    @id @default(uuid()) @db.Uuid
+  projectId       String?   @db.Uuid
+  name            String    @db.VarChar(200)
+  slug            String    @db.VarChar(120)
+  container       String    @db.VarChar(40)
+  videoCodec      String?   @db.VarChar(80)
+  audioCodec      String?   @db.VarChar(80)
   width           Int
   height          Int
   fps             Float
   bitrate         Int?
   audioSampleRate Int?
-  aspectRatio     String?  @db.VarChar(20)
-  isDefault       Boolean  @default(false)
+  aspectRatio     String?   @db.VarChar(20)
+  isDefault       Boolean   @default(false)
+  version         Int       @default(1)
+  archivedAt      DateTime?
   metadata        Json?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   project    Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   renderJobs RenderJob[]
 
   @@unique([projectId, slug])
   @@index([projectId, isDefault])
+  @@index([projectId, archivedAt])
+  @@index([archivedAt])
   @@map("export_presets")
 }
 

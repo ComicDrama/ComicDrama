@@ -299,7 +299,12 @@
   - 验证方式：执行 Prisma format/validate；以前一版 Schema 为基线生成并检查 PostgreSQL 差异迁移；执行全仓库静态检查、构建、Worker 检查和 `git diff --check`；将 Ruff/Pytest 固化为 Worker 开发依赖，并忽略本地运行缓存。
   - 验证结果：通过 Schema 校验。UsageRecord 记录可计量资源用量；CostRecord 以定点金额保存估算/计提/退款/作废账目；AuditLog 追加保存关键操作的操作者、请求/追踪 ID 和变更快照。迁移已基于 P2-10 Schema 差异生成并完成 SQL 检查。
   - 备注：本轮 `prisma migrate deploy`/`migrate status` 对本地 `localhost:5432` 返回无详情的 Prisma Schema engine error，未将“本地 PostgreSQL 已应用第 11 个迁移”作为验证结论；须在数据库恢复可访问后执行 README 中的迁移命令。P2-14～P2-17 将负责用户/团队权限和关键操作自动写入 AuditLog，P9/P10 将实现成本汇总、预算闸门和导出拦截。
-- [ ] `P2-12` 为所有核心表增加项目归属、创建/更新时间、软删除或归档策略、版本号和必要索引。
+- [x] `P2-12` 为所有核心表增加项目归属、创建/更新时间、软删除或归档策略、版本号和必要索引。
+  - 完成日期：2026-09-21。
+  - 实现位置：`api/prisma/schema.prisma`、`api/prisma/migrations/20260921000200_core_table_governance/migration.sql`、`api/prisma/README.md`、`README.md`。
+  - 验证方式：执行 Prisma format/validate；以前一版 Schema 为基线生成并检查 PostgreSQL 差异迁移；检查历史项目归属回填、非空约束、外键、归档/状态索引和 `@updatedAt` 迁移默认值；执行全仓库静态检查、构建、Worker 检查和 `git diff --check`。
+  - 验证结果：通过 Schema 校验。Episode、Script、Shot、Timeline 具有可索引、非空的直接 `projectId`；聚合根补齐乐观并发版本号，资产集合和导出预设补齐归档字段；TaskAttempt、Generation、GenerationCandidate、RenderSegment 补齐更新时间。版本快照、关联边和账本/审计记录遵循不可变/追加式策略，不以软删除或更新时间覆盖历史。
+  - 备注：迁移会从 Season → Episode → Script → Shot/Timeline 链路回填项目归属，遇到无法回填数据会中止。本地 Docker CLI 在当前 Codex 终端不可见，未将“本地 PostgreSQL 已应用第 12 个迁移”作为验证结论；恢复可访问数据库后应执行 README 中的 `prisma migrate deploy` 和 `migrate status`。P2-13 将补齐种子数据和正式回滚操作说明。
 - [ ] `P2-13` 编写迁移、种子数据和回滚说明。
 
 ## P2.2 访问控制与审计
@@ -591,4 +596,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-11`。下一步实施 `P2-12`，补齐核心表治理策略与必要索引。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-12`。下一步实施 `P2-13`，补齐迁移执行、种子数据和回滚说明。

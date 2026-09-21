@@ -11,6 +11,9 @@
 - `20260919000700_generation_provider_models` 对应实施计划中的 `P2-07`，建立生成请求、生成候选和 Provider 异步任务。
 - `20260919000800_workflow_task_models` 对应实施计划中的 `P2-08`，建立工作流定义、运行实例、任务事实源和任务尝试记录。
 - `20260919154745_timeline_models` 对应实施计划中的 `P2-09`，建立时间线、时间线不可变版本、轨道、片段、转场和关键帧。
+- `20260919161159_review_render_models` 对应实施计划中的 `P2-10`，建立审核、审批、渲染任务、分段渲染和导出预设。
+- `20260921000100_usage_cost_audit_models` 对应实施计划中的 `P2-11`，建立用量、成本和追加式审计事实源。
+- `20260921000200_core_table_governance` 对应实施计划中的 `P2-12`，补齐核心聚合根治理字段、项目查询路径和生命周期索引。
 
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
@@ -147,3 +150,16 @@ Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、�
 - `AuditLog`：追加式关键操作审计记录，保存操作者、动作、实体类型/ID、requestId、traceId、变更前后快照和上下文元数据；项目关系使用 `SetNull`，保留已归档或删除资源的审计轨迹。
 
 用量、成本与审计均以 PostgreSQL 为事实源。货币金额和可计量数量使用定点 `Decimal`，不使用浮点金额；Provider 原始请求/响应仍由既有 `ProviderJob` 归档。应用层在 P2-14～P2-17 接入用户、团队、资源权限和关键操作写入；预算闸门、成本汇总与导出前拦截在 P9/P10 实施。
+
+## P2-12 核心表治理策略
+
+`20260921000200_core_table_governance` 将 Episode、Script、Shot 和 Timeline 的项目归属固化为非空 `projectId`，使常用的项目范围查询不再依赖跨多级关系连接。迁移按 Season → Episode → Script → Shot/Timeline 链路回填已有数据；回填后才施加非空约束和项目外键。写入 API 必须在同一事务中从父实体继承 `projectId`，并在 P2-16 的资源级权限检查中拒绝项目不一致的关联。
+
+治理字段按记录性质分层：
+
+- 逻辑聚合根（项目、剧集、原文、剧本、镜头、角色、场景、道具、资产、资产集合、工作流、时间线和导出预设）保留 `createdAt`、`updatedAt`、`version`，并以 `archivedAt` 归档替代物理删除；`version` 用作乐观并发控制计数，API 更新时须同时匹配旧值并递增。
+- 可变运行记录（TaskAttempt、Generation、GenerationCandidate、ProviderJob、RenderJob、RenderSegment、Review 和 ReviewComment）记录 `updatedAt`，以便恢复、重试和状态追踪。
+- 版本快照、引用边和账本/审计记录是不可变或追加式事实：SourceDocumentVersion、ScriptVersion、ShotVersion、LocationVersion、AssetVersion、TimelineVersion、Approval、UsageRecord、CostRecord 和 AuditLog 不做软删除，也不以 `updatedAt` 覆盖历史。需要修正时创建新的版本、审批、成本冲销或审计事件。
+- `Asset`、`AssetCollection`、`Character`、`Location`、`Prop` 和 `ExportPreset` 的 `projectId` 仍允许为空，表示受治理的全局共享资源；所有业务查询必须显式选择“当前项目资源”或“全局共享资源”。
+
+新增的复合索引覆盖项目 + 状态/归档时间的列表、治理和清理查询；现有按父级、版本、状态和时间的索引继续用于追溯链与 Worker 查询。该迁移包含回填失败即中止的检查，避免在项目归属不完整时静默提交。
