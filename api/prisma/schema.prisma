@@ -340,6 +340,44 @@ enum InterpolationType {
   BEZIER
 }
 
+enum UsageSourceType {
+  PROVIDER
+  GENERATION
+  RENDER
+  WORKFLOW
+  STORAGE
+  OTHER
+}
+
+enum UsageMetric {
+  REQUESTS
+  INPUT_TOKENS
+  OUTPUT_TOKENS
+  IMAGE_COUNT
+  VIDEO_SECONDS
+  AUDIO_SECONDS
+  RENDER_FRAMES
+  COMPUTE_SECONDS
+  STORAGE_BYTES
+  OTHER
+}
+
+enum CostCategory {
+  AI_GENERATION
+  RENDER
+  STORAGE
+  EGRESS
+  SUBSCRIPTION
+  OTHER
+}
+
+enum CostStatus {
+  ESTIMATED
+  ACCRUED
+  REFUNDED
+  VOID
+}
+
 enum ReviewTargetType {
   SCRIPT_VERSION
   SHOT_VERSION
@@ -423,6 +461,9 @@ model Project {
   reviews          Review[]
   renderJobs       RenderJob[]
   exportPresets    ExportPreset[]
+  usageRecords     UsageRecord[]
+  costRecords      CostRecord[]
+  auditLogs        AuditLog[]
 
   @@index([status])
   @@index([archivedAt])
@@ -933,6 +974,8 @@ model Generation {
   selectedCandidate GenerationCandidate?  @relation("GenerationSelectedCandidate", fields: [selectedCandidateId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   candidates        GenerationCandidate[] @relation("GenerationCandidates")
   providerJobs      ProviderJob[]
+  usageRecords      UsageRecord[]
+  costRecords       CostRecord[]
 
   @@index([projectId, status])
   @@index([targetType, targetId])
@@ -997,10 +1040,11 @@ model ProviderJob {
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
-  generation Generation            @relation(fields: [generationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  parentJob  ProviderJob?          @relation("ProviderJobRetry", fields: [parentJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  childJobs  ProviderJob[]         @relation("ProviderJobRetry")
-  candidates GenerationCandidate[]
+  generation   Generation            @relation(fields: [generationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parentJob    ProviderJob?          @relation("ProviderJobRetry", fields: [parentJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  childJobs    ProviderJob[]         @relation("ProviderJobRetry")
+  candidates   GenerationCandidate[]
+  usageRecords UsageRecord[]
 
   @@unique([generationId, attempt])
   @@unique([provider, externalJobId])
@@ -1555,6 +1599,8 @@ model RenderJob {
   timelineVersion TimelineVersion @relation(fields: [timelineVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   exportPreset    ExportPreset    @relation(fields: [exportPresetId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   segments        RenderSegment[]
+  usageRecords    UsageRecord[]
+  costRecords     CostRecord[]
 
   @@index([projectId, status, createdAt])
   @@index([timelineVersionId, createdAt])
@@ -1612,4 +1658,98 @@ model ExportPreset {
   @@unique([projectId, slug])
   @@index([projectId, isDefault])
   @@map("export_presets")
+}
+
+model UsageRecord {
+  id            String          @id @default(uuid()) @db.Uuid
+  projectId     String?         @db.Uuid
+  generationId  String?         @db.Uuid
+  providerJobId String?         @db.Uuid
+  renderJobId   String?         @db.Uuid
+  sourceType    UsageSourceType
+  metric        UsageMetric
+  resourceType  String?         @db.VarChar(80)
+  resourceId    String?         @db.Uuid
+  provider      String?         @db.VarChar(120)
+  model         String?         @db.VarChar(160)
+  quantity      Decimal         @db.Decimal(24, 8)
+  unit          String          @db.VarChar(40)
+  inputTokens   Int?
+  outputTokens  Int?
+  durationMs    Int?
+  metadata      Json?
+  occurredAt    DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  generation  Generation?  @relation(fields: [generationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  providerJob ProviderJob? @relation(fields: [providerJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  renderJob   RenderJob?   @relation(fields: [renderJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  costs       CostRecord[]
+
+  @@index([projectId, occurredAt])
+  @@index([sourceType, metric, occurredAt])
+  @@index([generationId])
+  @@index([providerJobId])
+  @@index([renderJobId])
+  @@index([resourceType, resourceId])
+  @@map("usage_records")
+}
+
+model CostRecord {
+  id            String       @id @default(uuid()) @db.Uuid
+  projectId     String?      @db.Uuid
+  usageRecordId String?      @db.Uuid
+  generationId  String?      @db.Uuid
+  renderJobId   String?      @db.Uuid
+  category      CostCategory
+  status        CostStatus   @default(ACCRUED)
+  provider      String?      @db.VarChar(120)
+  model         String?      @db.VarChar(160)
+  description   String?
+  quantity      Decimal?     @db.Decimal(24, 8)
+  unit          String?      @db.VarChar(40)
+  unitPrice     Decimal?     @db.Decimal(24, 8)
+  amount        Decimal      @db.Decimal(18, 6)
+  currency      String       @default("USD") @db.VarChar(12)
+  metadata      Json?
+  incurredAt    DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+
+  project     Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  usageRecord UsageRecord? @relation(fields: [usageRecordId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  generation  Generation?  @relation(fields: [generationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  renderJob   RenderJob?   @relation(fields: [renderJobId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([projectId, incurredAt])
+  @@index([category, status, incurredAt])
+  @@index([usageRecordId])
+  @@index([generationId])
+  @@index([renderJobId])
+  @@map("cost_records")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  projectId  String?  @db.Uuid
+  actorId    String?  @db.VarChar(120)
+  actorType  String?  @db.VarChar(40)
+  action     String   @db.VarChar(120)
+  entityType String   @db.VarChar(80)
+  entityId   String?  @db.VarChar(120)
+  requestId  String?  @db.VarChar(120)
+  traceId    String?  @db.VarChar(120)
+  before     Json?
+  after      Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([traceId])
+  @@map("audit_logs")
 }

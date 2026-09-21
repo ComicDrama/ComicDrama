@@ -137,3 +137,13 @@ Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、�
 - `ExportPreset`：系统级或项目级导出预设，保存容器、音视频编码、分辨率、帧率、码率、音频采样率、画幅和默认标记。
 
 审核对象采用多态目标字段，目标存在性、项目归属、版本状态和 Reviewer/Director 审批角色由 API 层校验。`RenderJob` 必须引用不可变的 `TimelineVersion`；渲染产物和分段文件进入 MinIO/S3，PostgreSQL 只保存对象存储键、哈希/媒体元数据和可追溯状态。`startFrame`、`endFrame`、`timecodeFrame` 的范围关系以及导出前审批闸门将在后续 P6/P9/P10 实施。
+
+## P2-11 用量、成本与审计事实源
+
+`20260921000100_usage_cost_audit_models` 增加：
+
+- `UsageRecord`：不可变用量事实，记录 Provider、生成或渲染所消耗的请求数、输入/输出 Token、图片数、音视频时长、渲染帧、计算时长或存储字节；可关联项目、Generation、ProviderJob、RenderJob 和通用资源目标。
+- `CostRecord`：独立的成本账目，支持预计、已计提、退款和作废状态，保存计费类别、Provider/模型、数量、单价、金额、币种和发生时间；可由具体 UsageRecord 派生，也可直接关联生成或渲染任务。
+- `AuditLog`：追加式关键操作审计记录，保存操作者、动作、实体类型/ID、requestId、traceId、变更前后快照和上下文元数据；项目关系使用 `SetNull`，保留已归档或删除资源的审计轨迹。
+
+用量、成本与审计均以 PostgreSQL 为事实源。货币金额和可计量数量使用定点 `Decimal`，不使用浮点金额；Provider 原始请求/响应仍由既有 `ProviderJob` 归档。应用层在 P2-14～P2-17 接入用户、团队、资源权限和关键操作写入；预算闸门、成本汇总与导出前拦截在 P9/P10 实施。

@@ -293,7 +293,12 @@
   - 验证方式：执行 Prisma format/validate；生成并检查 PostgreSQL 迁移；部署迁移并执行 migrate status；检查审核目标、审批历史、TimelineVersion 渲染引用、分段缓存和导出预设索引；执行完整 CI 静态检查。
   - 验证结果：通过。Review 支持版本/时间线/渲染任务等多态审核目标；ReviewComment 支持字段路径和帧级意见；Approval 保留审批历史；RenderJob 固定 TimelineVersion 与 ExportPreset；RenderSegment 支持局部渲染与分段缓存；第 10 个迁移已应用，数据库状态为最新。
   - 备注：审核目标存在性、项目归属、Reviewer/Director 角色和导出前审批闸门由后续 API/P9/P10 校验补齐；媒体文件进入 MinIO/S3，数据库保存对象存储键和元数据。
-- [ ] `P2-11` 建立 UsageRecord、CostRecord、AuditLog。
+- [x] `P2-11` 建立 UsageRecord、CostRecord、AuditLog。
+  - 完成日期：2026-09-21。
+  - 实现位置：`api/prisma/schema.prisma`、`api/prisma/migrations/20260921000100_usage_cost_audit_models/migration.sql`、`api/prisma/README.md`、`README.md`、`workers/pyproject.toml`、`workers/uv.lock`、`.prettierignore`。
+  - 验证方式：执行 Prisma format/validate；以前一版 Schema 为基线生成并检查 PostgreSQL 差异迁移；执行全仓库静态检查、构建、Worker 检查和 `git diff --check`；将 Ruff/Pytest 固化为 Worker 开发依赖，并忽略本地运行缓存。
+  - 验证结果：通过 Schema 校验。UsageRecord 记录可计量资源用量；CostRecord 以定点金额保存估算/计提/退款/作废账目；AuditLog 追加保存关键操作的操作者、请求/追踪 ID 和变更快照。迁移已基于 P2-10 Schema 差异生成并完成 SQL 检查。
+  - 备注：本轮 `prisma migrate deploy`/`migrate status` 对本地 `localhost:5432` 返回无详情的 Prisma Schema engine error，未将“本地 PostgreSQL 已应用第 11 个迁移”作为验证结论；须在数据库恢复可访问后执行 README 中的迁移命令。P2-14～P2-17 将负责用户/团队权限和关键操作自动写入 AuditLog，P9/P10 将实现成本汇总、预算闸门和导出拦截。
 - [ ] `P2-12` 为所有核心表增加项目归属、创建/更新时间、软删除或归档策略、版本号和必要索引。
 - [ ] `P2-13` 编写迁移、种子数据和回滚说明。
 
@@ -586,4 +591,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-10`。下一步实施 `P2-11`，建立用量、成本与审计事实源。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-11`。下一步实施 `P2-12`，补齐核心表治理策略与必要索引。

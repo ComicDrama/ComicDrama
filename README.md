@@ -9,8 +9,8 @@
 - V1 固定测试样本：`V1测试样本_雨夜的灯.md`
 - 架构说明：`AI漫剧平台架构说明书v1.1.md`
 - 实施计划：`AI漫剧创作平台实施计划.md`
-- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-10`
-- 当前阶段：P2 核心数据模型与迁移；下一项为 `P2-11`（UsageRecord、CostRecord、AuditLog）
+- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-11`
+- 当前阶段：P2 核心数据模型与迁移；下一项为 `P2-12`（核心表治理与必要索引）
 - CI：GitHub Actions 已配置 Node.js 22、Python 3.13、Prisma、Prettier、ESLint、Ruff、Pytest、类型检查和构建检查
 
 ## 环境要求
@@ -124,5 +124,6 @@ P2 已按实施计划逐步建立 PostgreSQL 事实源：
 - P2-08：工作流与任务事实源
 - P2-09：Timeline、TimelineVersion、Track、Clip、Transition、Keyframe
 - P2-10：Review、ReviewComment、Approval、RenderJob、RenderSegment、ExportPreset
+- P2-11：UsageRecord、CostRecord、AuditLog
 
 详细字段、迁移约束和后续业务校验见 [`api/prisma/README.md`](api/prisma/README.md)。
