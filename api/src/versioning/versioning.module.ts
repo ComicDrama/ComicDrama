@@ -4,6 +4,6 @@ import { VersioningService } from './versioning.service';
 
 @Module({
   providers: [PrismaService, VersioningService],
-  exports: [VersioningService],
+  exports: [PrismaService, VersioningService],
 })
 export class VersioningModule {}

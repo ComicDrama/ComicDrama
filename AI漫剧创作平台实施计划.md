@@ -370,7 +370,12 @@
   - 验证方式：API lint/typecheck/build、全仓库 Prettier、`git diff --check`；真实数据库事务和对象清理需在 PostgreSQL/MinIO 启动后执行集成验证。
   - 验证结果：上传成功后在事务内创建 `SourceDocument` 聚合根和首个 `SourceDocumentVersion`，保存文件名、扩展名、MIME、大小、SHA-256、storageKey、导入时间和 `IMPORTING` 状态，并返回文档/版本 ID；数据库登记失败时尝试删除已上传对象。
   - 备注：版本写入统一经过 `VersioningService`，后续修订继续遵循追加式不可变版本规则；本次未连接 PostgreSQL/MinIO，不宣称真实运行验证完成。
-- [ ] `P3-04` 完成章节、段落、字符偏移量和来源位置解析。
+- [x] `P3-04` 完成章节、段落、字符偏移量和来源位置解析。
+  - 完成日期：2026-09-22。
+  - 实现位置：`api/src/source-documents/source-document-parser.service.ts`、`api/src/source-documents/source-document-parse.service.ts`、`api/src/source-documents/object-storage.service.ts`、`api/src/source-documents/source-document-upload.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/src/versioning/versioning.module.ts`、`docs/api-contracts.md`。
+  - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实对象存储和 PostgreSQL 请求需在 Docker 服务可用后补充执行。
+  - 验证结果：新增解析端点，从 S3-compatible 对象存储读取 TXT/Markdown，统一换行，保存全文 textContent，创建 DOCUMENT、CHAPTER、SECTION、PARAGRAPH 来源树，记录 UTF-16 code unit 半开区间偏移量和 1-based 行号；解析状态支持 PARSING、READY、FAILED，重复解析先清理旧 segments。
+  - 备注：DOCX 上传仍可接收并保存原始对象，但 P3-04 不解析 DOCX；更多格式 Parser 接口留给 P3-06。
 - [ ] `P3-05` 提供原文预览、章节选择和段落定位 API。
 - [ ] `P3-06` 为 DOCX、EPUB、PDF、Fountain、Final Draft XML 建立 Parser 接口和待实现任务，不在 V1 阻塞主线。
 
@@ -641,4 +646,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-03`。下一步实施 `P3-04`：完成章节、段落、字符偏移量和来源位置解析。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-04`。下一步实施 `P3-05`：提供原文预览、章节选择和段落定位 API。

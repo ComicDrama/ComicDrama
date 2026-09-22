@@ -133,3 +133,49 @@ x-user-id: <active-user-uuid>
 - `parserStatus`：`PENDING_PARSER`，表示正文尚未解析。
 
 上传成功后会在同一业务流程中创建 `SourceDocument` 和首个 `SourceDocumentVersion`，并返回 `documentId`、`versionId` 和 `version`。版本记录导入时间、解析状态 `IMPORTING`、文件元数据和暂存对象路径；数据库登记失败时会尝试删除已上传对象，避免产生无法追溯的暂存文件。正文解析仍由后续 P3 任务完成。对象存储通过 `@aws-sdk/client-s3` 的 S3-compatible 接口访问，可连接本地 MinIO、AWS S3 或其他兼容服务。
+
+## 原文解析（P3-04）
+
+上传完成后，客户端可以请求解析指定的 TXT 或 Markdown 原文版本：
+
+```text
+POST /api/projects/:projectId/source-documents/:documentId/versions/:versionId/parse
+x-user-id: <active-user-uuid>
+```
+
+端点要求项目 `EDIT` 访问级别，并在成功完成后写入 `IMPORT` 类型的 `AuditLog`。解析服务从版本记录的 `storageKey` 读取原始对象，不修改原始对象内容；DOCX 版本仍可上传并保存，但 P3-04 会返回不支持解析的错误，DOCX Parser 留给后续任务。
+
+TXT 和 Markdown 的解析结果写入 `SourceDocumentVersion.textContent` 和 `SourceSegment` 来源树：
+
+- 每个版本创建一个 `DOCUMENT` 根节点；Markdown ATX 标题创建 `CHAPTER` 或 `SECTION` 节点，普通连续非空文本创建 `PARAGRAPH` 节点；
+- 标题包含“第…章”“第…集”或以 `Chapter`/`Episode` 开头时识别为 `CHAPTER`，其他 Markdown 标题识别为 `SECTION`；
+- `parentId` 按标题层级和段落所属标题建立树关系，`ordinal` 从 `0` 开始并在版本内唯一；
+- `startOffset`/`endOffset` 使用 JavaScript UTF-16 code unit 计数，区间为半开区间 `[startOffset, endOffset)`；
+- `startLine`/`endLine` 使用从 `1` 开始的行号；`CRLF` 和孤立 `CR` 在解析前统一为 `LF`，全文缓存保存规范化后的文本；
+- fenced code block 内的 `#` 不作为标题解析，列表和 Markdown 表格按连续文本段落保留。
+
+成功响应示例：
+
+```json
+{
+  "data": {
+    "documentId": "document-uuid",
+    "versionId": "version-uuid",
+    "version": 1,
+    "status": "READY",
+    "parserName": "builtin-text-markdown",
+    "parserVersion": "1.0.0",
+    "textLength": 1280,
+    "segmentCount": 12,
+    "segmentsByType": {
+      "DOCUMENT": 1,
+      "CHAPTER": 3,
+      "SECTION": 2,
+      "PARAGRAPH": 6
+    }
+  },
+  "meta": { "projectId": "project-uuid" }
+}
+```
+
+解析状态流转为 `IMPORTING` → `PARSING` → `READY`，失败时为 `FAILED` 并保存 `errorMessage`。重复调用是可重入的：服务会先删除该版本旧的 `SourceSegment`，清空旧解析缓存，再重新读取原始对象并创建同一版本的新解析结果。P3-05 将补充原文预览、章节选择和段落定位查询 API。

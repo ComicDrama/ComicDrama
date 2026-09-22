@@ -1,0 +1,198 @@
+﻿import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  SourceDocumentStatus,
+  SourceDocumentType,
+  SourceSegmentType,
+  SourceVersionStatus,
+} from '@prisma/client';
+import { PrismaService } from '../common/prisma.service';
+import { ObjectStorageService } from './object-storage.service';
+import {
+  SourceDocumentParserService,
+  type ParsedSourceSegment,
+} from './source-document-parser.service';
+
+export interface ParsedSourceVersionResult {
+  documentId: string;
+  versionId: string;
+  version: number;
+  status: SourceVersionStatus;
+  parserName: string;
+  parserVersion: string;
+  textLength: number;
+  segmentCount: number;
+  segmentsByType: Record<SourceSegmentType, number>;
+}
+
+@Injectable()
+export class SourceDocumentParseService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly objectStorage: ObjectStorageService,
+    private readonly parser: SourceDocumentParserService,
+  ) {}
+
+  async parseVersion(
+    projectId: string,
+    documentId: string,
+    versionId: string,
+  ): Promise<ParsedSourceVersionResult> {
+    const version = await this.prisma.sourceDocumentVersion.findFirst({
+      where: {
+        id: versionId,
+        documentId,
+        document: { projectId },
+      },
+      include: { document: true },
+    });
+    if (!version) {
+      throw new NotFoundException('原文版本不存在或不属于当前项目');
+    }
+
+    await this.markParsing(version.documentId, version.id);
+
+    try {
+      this.assertSupportedDocumentType(version.document.documentType);
+      const object = await this.objectStorage.getObject(version.storageKey);
+      const text = object.toString('utf8');
+      const parsed = this.parser.parse(text);
+      return await this.persistParsedVersion({
+        projectId,
+        documentId,
+        versionId,
+        version: version.version,
+        ...parsed,
+      });
+    } catch (error) {
+      await this.markFailed(version.documentId, version.id, this.describeError(error));
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`原文解析失败: ${this.describeError(error)}`);
+    }
+  }
+
+  private async markParsing(documentId: string, versionId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.sourceSegment.deleteMany({ where: { versionId } });
+      await tx.sourceDocumentVersion.update({
+        where: { id: versionId },
+        data: {
+          status: SourceVersionStatus.PARSING,
+          textContent: null,
+          parserName: null,
+          parserVersion: null,
+          parsedAt: null,
+          errorMessage: null,
+        },
+      });
+      await tx.sourceDocument.update({
+        where: { id: documentId },
+        data: { status: SourceDocumentStatus.IMPORTING },
+      });
+    });
+  }
+
+  private async persistParsedVersion(input: {
+    projectId: string;
+    documentId: string;
+    versionId: string;
+    version: number;
+    textContent: string;
+    segments: ParsedSourceSegment[];
+  }): Promise<ParsedSourceVersionResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const createdIds: string[] = [];
+      const counts: Record<SourceSegmentType, number> = {
+        [SourceSegmentType.DOCUMENT]: 0,
+        [SourceSegmentType.CHAPTER]: 0,
+        [SourceSegmentType.SECTION]: 0,
+        [SourceSegmentType.PARAGRAPH]: 0,
+      };
+
+      for (const segment of input.segments) {
+        const created = await tx.sourceSegment.create({
+          data: {
+            versionId: input.versionId,
+            parentId:
+              segment.parentIndex === undefined ? undefined : createdIds[segment.parentIndex],
+            type: segment.type,
+            ordinal: createdIds.length,
+            title: segment.title,
+            content: segment.content,
+            startOffset: segment.startOffset,
+            endOffset: segment.endOffset,
+            startLine: segment.startLine,
+            endLine: segment.endLine,
+            metadata: segment.metadata,
+          },
+        });
+        createdIds.push(created.id);
+        counts[segment.type] += 1;
+      }
+
+      await tx.sourceDocumentVersion.update({
+        where: { id: input.versionId },
+        data: {
+          textContent: input.textContent,
+          parserName: SourceDocumentParserService.parserName,
+          parserVersion: SourceDocumentParserService.parserVersion,
+          status: SourceVersionStatus.READY,
+          errorMessage: null,
+          parsedAt: new Date(),
+        },
+      });
+      await tx.sourceDocument.update({
+        where: { id: input.documentId },
+        data: { status: SourceDocumentStatus.READY },
+      });
+
+      return {
+        documentId: input.documentId,
+        versionId: input.versionId,
+        version: input.version,
+        status: SourceVersionStatus.READY,
+        parserName: SourceDocumentParserService.parserName,
+        parserVersion: SourceDocumentParserService.parserVersion,
+        textLength: input.textContent.length,
+        segmentCount: createdIds.length,
+        segmentsByType: counts,
+      };
+    });
+  }
+
+  private async markFailed(documentId: string, versionId: string, message: string): Promise<void> {
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.sourceDocumentVersion.update({
+          where: { id: versionId },
+          data: { status: SourceVersionStatus.FAILED, errorMessage: message, parsedAt: null },
+        });
+        await tx.sourceDocument.update({
+          where: { id: documentId },
+          data: { status: SourceDocumentStatus.FAILED },
+        });
+      });
+    } catch {
+      // Preserve the original parse error when the failure status itself cannot be persisted.
+    }
+  }
+
+  private assertSupportedDocumentType(documentType: SourceDocumentType): void {
+    if (documentType !== SourceDocumentType.TXT && documentType !== SourceDocumentType.MARKDOWN) {
+      throw new BadRequestException(
+        '当前解析器仅支持 TXT 和 Markdown；DOCX 将在后续 Parser 任务中实现',
+      );
+    }
+  }
+
+  private describeError(error: unknown): string {
+    return error instanceof Error ? error.message : '未知错误';
+  }
+}
