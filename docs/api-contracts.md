@@ -107,3 +107,21 @@ export(projectId: string, renderJobId: string) {
 4. 已有下游引用的版本禁止原地修改；版本修订必须创建新版本；
 5. 版本快照属于追加式事实，禁止删除；需要停用时应归档所属聚合根或通过新版本表达状态变化；
 6. 当前已实现服务层规则。真实业务 API 接入后，还必须使用可运行的 PostgreSQL 执行数据库集成测试，覆盖并发版本创建、父版本归属、下游引用不可变性和事务回滚。
+
+## 原文上传（P3-01）
+
+原文上传端点：
+
+```text
+POST /api/projects/:projectId/source-documents/upload
+Content-Type: multipart/form-data
+x-user-id: <active-user-uuid>
+```
+
+请求必须包含名为 `file` 的文件字段，当前支持：
+
+- `.txt`，对应 `TXT`；
+- `.md`、`.markdown`，对应 `MARKDOWN`；
+- `.docx`，对应 `DOCX`。
+
+端点要求项目 `EDIT` 访问级别，单文件大小限制为 10 MiB。接口只负责接收文件、校验扩展名/MIME 类型并返回上传标识和文件元数据；当前文件保存在请求内存中，不写入数据库或对象存储。响应中的 `storageStatus` 为 `PENDING_STORAGE`，SHA-256 计算和 MinIO/S3 持久化由 P3-02 完成，DOCX/Markdown/TXT 内容解析由后续 P3 任务完成。

@@ -10,7 +10,7 @@
 - 架构说明：`AI漫剧平台架构说明书v1.1.md`
 - 实施计划：`AI漫剧创作平台实施计划.md`
 - 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`
-- 当前阶段：P2 核心数据模型、迁移、访问控制、审计与版本治理；`P2-18` 已完成，下一项为 `P3-01`（实现 TXT 和 Markdown 上传）
+- 当前阶段：P3 原文导入与内容理解；`P3-01` 已完成，下一项为 `P3-02`（计算文件哈希并保存原始文件到 MinIO/S3）
 - CI：GitHub Actions 已配置 Node.js 22、Python 3.13、Prisma、Prettier、ESLint、Ruff、Pytest、类型检查和构建检查
 
 ## 环境要求
@@ -133,5 +133,10 @@ P2 已按实施计划逐步建立 PostgreSQL 事实源：
 - P2-16：API 级权限守卫、项目资源级访问检查和业务角色访问级别校验
 - P2-17：关键导入、生成、修改、审核、锁定、导出、删除/归档操作的 AuditLog 自动记录
 - P2-18：版本创建、父版本链、当前版本指针和下游引用后的不可变规则
+
+P3 原文导入进度：
+
+- P3-01：TXT、DOCX 和 Markdown multipart 上传接收、类型校验、10 MiB 大小限制和项目 EDIT 权限保护
+- P3-02：待实施，负责 SHA-256 哈希和 MinIO/S3 原始文件持久化
 
 详细字段、迁移约束和后续业务校验见 [`api/prisma/README.md`](api/prisma/README.md)；迁移执行、种子数据与回滚流程见 [`docs/database-migrations.md`](docs/database-migrations.md)。
