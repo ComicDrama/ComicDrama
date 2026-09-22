@@ -19,6 +19,12 @@ services:
     environment:
       API_PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-comicdrama}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-comicdrama}?schema=public
+      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT:-http://minio:9000}
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION:-us-east-1}
+      OBJECT_STORAGE_BUCKET: ${MINIO_BUCKET:-comicdrama}
+      OBJECT_STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      OBJECT_STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change-me-too}
+      OBJECT_STORAGE_FORCE_PATH_STYLE: ${OBJECT_STORAGE_FORCE_PATH_STYLE:-true}
     ports:
       - '${API_PORT:-3000}:3000'
     healthcheck:
@@ -31,6 +37,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   postgres:

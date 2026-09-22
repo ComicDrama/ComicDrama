@@ -15,19 +15,20 @@
     "prisma:generate": "prisma generate --schema prisma/schema.prisma"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.901.0",
     "@nestjs/common": "^11.0.11",
     "@nestjs/core": "^11.0.11",
     "@nestjs/platform-express": "^11.0.11",
+    "@prisma/client": "^6.19.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2",
-    "@prisma/client": "^6.19.0"
+    "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.5",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
-    "typescript": "^5.7.3",
-    "prisma": "^6.19.0"
+    "prisma": "^6.19.0",
+    "typescript": "^5.7.3"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

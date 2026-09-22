@@ -124,4 +124,12 @@ x-user-id: <active-user-uuid>
 - `.md`、`.markdown`，对应 `MARKDOWN`；
 - `.docx`，对应 `DOCX`。
 
-端点要求项目 `EDIT` 访问级别，单文件大小限制为 10 MiB。接口只负责接收文件、校验扩展名/MIME 类型并返回上传标识和文件元数据；当前文件保存在请求内存中，不写入数据库或对象存储。响应中的 `storageStatus` 为 `PENDING_STORAGE`，SHA-256 计算和 MinIO/S3 持久化由 P3-02 完成，DOCX/Markdown/TXT 内容解析由后续 P3 任务完成。
+端点要求项目 `EDIT` 访问级别，单文件大小限制为 10 MiB。接口会校验扩展名/MIME 类型，计算 SHA-256，并将原始文件写入配置的 MinIO/S3-compatible 对象存储。当前返回对象存储暂存路径和文件元数据：
+
+- `storageStatus`：`STORED`；
+- `sha256`：文件内容的 SHA-256 十六进制摘要；
+- `storageKey`：对象存储中的暂存路径；
+- `byteSize`、`mimeType`：文件大小和 MIME 类型；
+- `parserStatus`：`PENDING_PARSER`，表示正文尚未解析。
+
+当前仍未在本端点创建 `SourceDocument` / `SourceDocumentVersion` 数据库事实源；版本记录、导入时间、解析状态和正式对象路径由 P3-03 完成。对象存储通过 `@aws-sdk/client-s3` 的 S3-compatible 接口访问，可连接本地 MinIO、AWS S3 或其他兼容服务。

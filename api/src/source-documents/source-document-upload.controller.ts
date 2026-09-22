@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadRequestException,
   Controller,
   Param,
@@ -31,16 +31,16 @@ export class SourceDocumentUploadController {
     captureResponseSnapshot: true,
   })
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
-  upload(@Param('projectId') projectId: string, @UploadedFile() file?: SourceUploadFile) {
+  async upload(@Param('projectId') projectId: string, @UploadedFile() file?: SourceUploadFile) {
     if (!file) {
       throw new BadRequestException('必须上传名为 file 的文件字段');
     }
 
     return {
-      data: this.uploads.accept(file),
+      data: await this.uploads.accept(projectId, file),
       meta: {
         projectId,
-        message: '文件已接收；持久化到对象存储和解析将在后续任务中完成',
+        message: '文件已写入对象存储；解析将在后续任务中完成',
       },
     };
   }

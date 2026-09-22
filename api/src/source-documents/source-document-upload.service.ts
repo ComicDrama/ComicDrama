@@ -1,6 +1,7 @@
-﻿import { BadRequestException, Injectable } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+﻿import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { createHash, randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
+import { ObjectStorageService } from './object-storage.service';
 
 export type UploadDocumentType = 'TXT' | 'MARKDOWN' | 'DOCX';
 
@@ -17,7 +18,9 @@ export interface AcceptedSourceUpload {
   documentType: UploadDocumentType;
   mimeType: string;
   byteSize: number;
-  storageStatus: 'PENDING_STORAGE';
+  sha256: string;
+  storageKey: string;
+  storageStatus: 'STORED';
   parserStatus: 'PENDING_PARSER';
 }
 
@@ -41,7 +44,44 @@ const FILE_RULES: Record<UploadDocumentType, { extensions: string[]; mimeTypes: 
 
 @Injectable()
 export class SourceDocumentUploadService {
-  accept(file: SourceUploadFile): AcceptedSourceUpload {
+  constructor(private readonly objectStorage: ObjectStorageService) {}
+
+  async accept(projectId: string, file: SourceUploadFile): Promise<AcceptedSourceUpload> {
+    const documentType = this.validateFile(file);
+    const buffer = file.buffer as Buffer;
+    const sha256 = createHash('sha256').update(buffer).digest('hex');
+    const uploadId = randomUUID();
+    const extension = extname(file.originalname).toLowerCase();
+    const storageKey = `projects/${projectId}/source/uploads/${uploadId}/original${extension}`;
+
+    try {
+      await this.objectStorage.putObject({
+        key: storageKey,
+        body: buffer,
+        contentType: file.mimetype,
+        contentLength: file.size,
+        sha256,
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        `原始文件写入对象存储失败: ${this.describeError(error)}`,
+      );
+    }
+
+    return {
+      uploadId,
+      fileName: file.originalname,
+      documentType,
+      mimeType: file.mimetype,
+      byteSize: file.size,
+      sha256,
+      storageKey,
+      storageStatus: 'STORED',
+      parserStatus: 'PENDING_PARSER',
+    };
+  }
+
+  private validateFile(file: SourceUploadFile): UploadDocumentType {
     if (!file?.originalname || !file.buffer) {
       throw new BadRequestException('必须上传名为 file 的文件字段');
     }
@@ -58,16 +98,7 @@ export class SourceDocumentUploadService {
         `文件扩展名与 MIME 类型不匹配，仅支持 ${rule.mimeTypes.join('、')}`,
       );
     }
-
-    return {
-      uploadId: randomUUID(),
-      fileName: file.originalname,
-      documentType,
-      mimeType: file.mimetype,
-      byteSize: file.size,
-      storageStatus: 'PENDING_STORAGE',
-      parserStatus: 'PENDING_PARSER',
-    };
+    return documentType;
   }
 
   private resolveDocumentType(extension: string): UploadDocumentType {
@@ -80,5 +111,9 @@ export class SourceDocumentUploadService {
       }
     }
     throw new BadRequestException('仅支持 TXT、DOCX 和 Markdown 文件');
+  }
+
+  private describeError(error: unknown): string {
+    return error instanceof Error ? error.message : '未知错误';
   }
 }
