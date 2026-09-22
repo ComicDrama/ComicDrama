@@ -9,8 +9,8 @@
 - V1 固定测试样本：`V1测试样本_雨夜的灯.md`
 - 架构说明：`AI漫剧平台架构说明书v1.1.md`
 - 实施计划：`AI漫剧创作平台实施计划.md`
-- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-15`
-- 当前阶段：P2 核心数据模型与迁移；下一项为 `P2-16`（API 权限守卫和资源级访问检查）
+- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-16`
+- 当前阶段：P2 核心数据模型、迁移与访问控制；`P2-16` 已完成，下一项为 `P2-17`（将关键操作写入 AuditLog）
 - CI：GitHub Actions 已配置 Node.js 22、Python 3.13、Prisma、Prettier、ESLint、Ruff、Pytest、类型检查和构建检查
 
 ## 环境要求
@@ -54,6 +54,7 @@ cd ..
 npm run prisma:format --workspace api
 $env:DATABASE_URL="postgresql://comicdrama:change-me@localhost:5432/comicdrama?schema=public"
 npm run prisma:validate --workspace api
+npm run prisma:generate --workspace api
 npm run format:check
 npm run lint
 npm run test
@@ -129,5 +130,6 @@ P2 已按实施计划逐步建立 PostgreSQL 事实源：
 - P2-13：迁移执行、可重复种子数据、失败处理与补偿迁移/回滚操作说明
 - P2-14：User、Team、TeamMember、ProjectMember、ProjectTeam 与通用项目访问级别
 - P2-15：首版业务角色与项目成员/团队角色分配
+- P2-16：API 级权限守卫、项目资源级访问检查和业务角色访问级别校验
 
 详细字段、迁移约束和后续业务校验见 [`api/prisma/README.md`](api/prisma/README.md)；迁移执行、种子数据与回滚流程见 [`docs/database-migrations.md`](docs/database-migrations.md)。
