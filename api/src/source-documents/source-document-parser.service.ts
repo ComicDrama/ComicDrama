@@ -1,22 +1,12 @@
-﻿import { Injectable } from '@nestjs/common';
-import { SourceSegmentType } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { SourceDocumentType, SourceSegmentType } from '@prisma/client';
+import {
+  type ParsedSourceSegment,
+  type ParsedSourceText,
+  type SourceDocumentParser,
+} from './source-document-parser.interface';
 
-export interface ParsedSourceSegment {
-  type: SourceSegmentType;
-  title?: string;
-  content: string;
-  startOffset: number;
-  endOffset: number;
-  startLine: number;
-  endLine: number;
-  parentIndex?: number;
-  metadata?: Record<string, string | number | boolean>;
-}
-
-export interface ParsedSourceText {
-  textContent: string;
-  segments: ParsedSourceSegment[];
-}
+export type { ParsedSourceSegment, ParsedSourceText } from './source-document-parser.interface';
 
 interface SourceLine {
   number: number;
@@ -34,9 +24,12 @@ const PARSER_NAME = 'builtin-text-markdown';
 const PARSER_VERSION = '1.0.0';
 
 @Injectable()
-export class SourceDocumentParserService {
+export class SourceDocumentParserService implements SourceDocumentParser {
   static readonly parserName = PARSER_NAME;
   static readonly parserVersion = PARSER_VERSION;
+  readonly name = PARSER_NAME;
+  readonly version = PARSER_VERSION;
+  readonly supportedDocumentTypes = [SourceDocumentType.TXT, SourceDocumentType.MARKDOWN] as const;
 
   parse(text: string): ParsedSourceText {
     const textContent = normalizeLineEndings(text);

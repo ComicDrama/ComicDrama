@@ -178,7 +178,7 @@ TXT 和 Markdown 的解析结果写入 `SourceDocumentVersion.textContent` 和 `
 }
 ```
 
-解析状态流转为 `IMPORTING` → `PARSING` → `READY`，失败时为 `FAILED` 并保存 `errorMessage`。重复调用是可重入的：服务会先删除该版本旧的 `SourceSegment`，清空旧解析缓存，再重新读取原始对象并创建同一版本的新解析结果。P3-05 将补充原文预览、章节选择和段落定位查询 API。
+解析状态流转为 `IMPORTING` → `PARSING` → `READY`，失败时为 `FAILED` 并保存 `errorMessage`。重复调用是可重入的：服务会先删除该版本旧的 `SourceSegment`，清空旧解析缓存，再重新读取原始对象并创建同一版本的新解析结果。P3-05 已提供原文预览、章节选择和段落定位查询 API。
 
 ## 原文读取与定位（P3-05）
 
@@ -205,3 +205,21 @@ x-user-id: <active-user-uuid>
 - 读取 API 不改变原始对象、版本事实或解析结果，也不会创建新的版本。
 
 成功响应统一使用 `{ data, meta }`；来源节点包含 `id`、`type`、`ordinal`、`title`、`content`、`startOffset`、`endOffset`、`startLine`、`endLine` 和 `parentId`。
+
+## Parser 注册与格式支持（P3-06）
+
+解析服务通过 `SourceDocumentParser` 接口和 `SourceDocumentParserRegistryService` 选择格式实现。每个注册项包含 Parser 名称、版本、支持的 `SourceDocumentType`、实现状态和后续任务说明。
+
+当前已实现：
+
+- `TXT`、`MARKDOWN`：`builtin-text-markdown@1.0.0`，沿用 P3-04 的章节、段落和 UTF-16 偏移量解析。
+
+已登记但暂未实现，当前不会把二进制内容误当作 UTF-8 文本解析：
+
+- `DOCX`：提取段落、标题、列表和文档属性；
+- `EPUB`：读取 spine、XHTML 内容和章节顺序；
+- `PDF`：提取页面文本、页码和段落位置，并预留 OCR 扩展点；
+- `FOUNTAIN`：识别场景标题、动作、角色、对白和转场；
+- `FINAL_DRAFT_XML`：读取 FDX 段落类型、样式和脚本元素层级。
+
+对尚未实现的格式调用解析端点时，接口返回 `400 Bad Request`，响应错误中包含对应的 P3-06 待实现任务；原始文件仍可按 P3-01～P3-03 的流程保存到对象存储并登记版本事实。

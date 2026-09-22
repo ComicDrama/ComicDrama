@@ -5,6 +5,7 @@ import { ObjectStorageModule } from './object-storage.module';
 import { SourceDocumentParseService } from './source-document-parse.service';
 import { SourceDocumentReadController } from './source-document-read.controller';
 import { SourceDocumentReadService } from './source-document-read.service';
+import { SourceDocumentParserRegistryService } from './source-document-parser-registry.service';
 import { SourceDocumentParserService } from './source-document-parser.service';
 import { SourceDocumentUploadController } from './source-document-upload.controller';
 import { SourceDocumentUploadService } from './source-document-upload.service';
@@ -15,12 +16,14 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
   providers: [
     SourceDocumentParseService,
     SourceDocumentParserService,
+    SourceDocumentParserRegistryService,
     SourceDocumentReadService,
     SourceDocumentUploadService,
   ],
   exports: [
     SourceDocumentParseService,
     SourceDocumentParserService,
+    SourceDocumentParserRegistryService,
     SourceDocumentReadService,
     SourceDocumentUploadService,
   ],

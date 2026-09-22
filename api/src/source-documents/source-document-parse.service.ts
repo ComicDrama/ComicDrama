@@ -1,22 +1,14 @@
-﻿import {
-  BadRequestException,
+import {
   HttpException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  SourceDocumentStatus,
-  SourceDocumentType,
-  SourceSegmentType,
-  SourceVersionStatus,
-} from '@prisma/client';
+import { SourceDocumentStatus, SourceSegmentType, SourceVersionStatus } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service';
 import { ObjectStorageService } from './object-storage.service';
-import {
-  SourceDocumentParserService,
-  type ParsedSourceSegment,
-} from './source-document-parser.service';
+import { SourceDocumentParserRegistryService } from './source-document-parser-registry.service';
+import { type ParsedSourceSegment } from './source-document-parser.interface';
 
 export interface ParsedSourceVersionResult {
   documentId: string;
@@ -35,7 +27,7 @@ export class SourceDocumentParseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly objectStorage: ObjectStorageService,
-    private readonly parser: SourceDocumentParserService,
+    private readonly parserRegistry: SourceDocumentParserRegistryService,
   ) {}
 
   async parseVersion(
@@ -58,15 +50,17 @@ export class SourceDocumentParseService {
     await this.markParsing(version.documentId, version.id);
 
     try {
-      this.assertSupportedDocumentType(version.document.documentType);
+      const parser = this.parserRegistry.getParser(version.document.documentType);
       const object = await this.objectStorage.getObject(version.storageKey);
       const text = object.toString('utf8');
-      const parsed = this.parser.parse(text);
+      const parsed = parser.parse(text);
       return await this.persistParsedVersion({
         projectId,
         documentId,
         versionId,
         version: version.version,
+        parserName: parser.name,
+        parserVersion: parser.version,
         ...parsed,
       });
     } catch (error) {
@@ -104,6 +98,8 @@ export class SourceDocumentParseService {
     documentId: string;
     versionId: string;
     version: number;
+    parserName: string;
+    parserVersion: string;
     textContent: string;
     segments: ParsedSourceSegment[];
   }): Promise<ParsedSourceVersionResult> {
@@ -141,8 +137,8 @@ export class SourceDocumentParseService {
         where: { id: input.versionId },
         data: {
           textContent: input.textContent,
-          parserName: SourceDocumentParserService.parserName,
-          parserVersion: SourceDocumentParserService.parserVersion,
+          parserName: input.parserName,
+          parserVersion: input.parserVersion,
           status: SourceVersionStatus.READY,
           errorMessage: null,
           parsedAt: new Date(),
@@ -158,8 +154,8 @@ export class SourceDocumentParseService {
         versionId: input.versionId,
         version: input.version,
         status: SourceVersionStatus.READY,
-        parserName: SourceDocumentParserService.parserName,
-        parserVersion: SourceDocumentParserService.parserVersion,
+        parserName: input.parserName,
+        parserVersion: input.parserVersion,
         textLength: input.textContent.length,
         segmentCount: createdIds.length,
         segmentsByType: counts,
@@ -181,14 +177,6 @@ export class SourceDocumentParseService {
       });
     } catch {
       // Preserve the original parse error when the failure status itself cannot be persisted.
-    }
-  }
-
-  private assertSupportedDocumentType(documentType: SourceDocumentType): void {
-    if (documentType !== SourceDocumentType.TXT && documentType !== SourceDocumentType.MARKDOWN) {
-      throw new BadRequestException(
-        '当前解析器仅支持 TXT 和 Markdown；DOCX 将在后续 Parser 任务中实现',
-      );
     }
   }
 

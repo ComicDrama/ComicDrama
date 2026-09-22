@@ -382,7 +382,12 @@
   - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实 PostgreSQL 查询需在 Docker 服务可用后补充执行集成验证。
   - 验证结果：新增 VIEW 权限保护的原文预览、章节/段落列表、segmentId 定位、UTF-16 偏移量范围定位和来源树节点详情 API；所有查询校验 project/document/version 归属，仅允许 READY 版本读取，并限制单次预览范围为 10,000 个 UTF-16 code unit。
   - 备注：预览读取数据库中的规范化 `textContent`，不会读取或修改原始对象；DOCX 仍需后续 Parser 实现。
-- [ ] `P3-06` 为 DOCX、EPUB、PDF、Fountain、Final Draft XML 建立 Parser 接口和待实现任务，不在 V1 阻塞主线。
+- [x] `P3-06` 为 DOCX、EPUB、PDF、Fountain、Final Draft XML 建立 Parser 接口和待实现任务，不在 V1 阻塞主线。
+  - 完成日期：2026-09-22。
+  - 实现位置：`api/src/source-documents/source-document-parser.interface.ts`、`api/src/source-documents/source-document-parser-registry.service.ts`、`api/src/source-documents/source-document-parser.service.ts`、`api/src/source-documents/source-document-parse.service.ts`、`api/src/source-documents/source-document.module.ts`、`README.md`、`docs/api-contracts.md`。
+  - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实格式样本解析需在后续对应 Parser 实现任务完成后补充。
+  - 验证结果：建立统一 `SourceDocumentParser` 接口和注册表；TXT/Markdown 接入现有 Parser；DOCX、EPUB、PDF、Fountain、Final Draft XML 及 UNKNOWN 均登记明确的待实现任务。解析服务通过注册表选择实现，未实现格式返回明确的 400 错误，不再将二进制文件误当作 UTF-8 文本解析。
+  - 备注：原始文件仍可保存到 S3-compatible 对象存储并登记不可变版本；P3-06 不强行引入重量级格式解析依赖，不阻塞 V1 主线。
 
 ## P3.2 分层理解流水线
 
@@ -651,4 +656,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-05`。下一步实施 `P3-06`：为 DOCX、EPUB、PDF、Fountain、Final Draft XML 建立 Parser 接口和待实现任务。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-06`。下一步实施 `P3-07`：实现文档清洗、切章、切段和可重入任务。
