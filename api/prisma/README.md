@@ -14,7 +14,21 @@
 - `20260919161159_review_render_models` 对应实施计划中的 `P2-10`，建立审核、审批、渲染任务、分段渲染和导出预设。
 - `20260921000100_usage_cost_audit_models` 对应实施计划中的 `P2-11`，建立用量、成本和追加式审计事实源。
 - `20260921000200_core_table_governance` 对应实施计划中的 `P2-12`，补齐核心聚合根治理字段、项目查询路径和生命周期索引。
+- `20260922000100_access_control_models` 对应实施计划中的 `P2-14`，建立 `users`、`teams`、`team_members`、`project_members`、`project_teams` 以及通用项目访问级别。
 
+迁移执行、种子数据、失败处理与回滚边界见 [docs/database-migrations.md](../../docs/database-migrations.md)（实施计划 P2-13）。
+
+## P2-14 用户、团队与项目访问
+
+`20260922000100_access_control_models` 增加：
+
+- `User` 与 `Team`：可归档的用户和团队聚合根，分别以 email 和 slug 唯一标识。
+- `TeamMember`：表达团队成员生命周期和团队管理员标志，不直接等同于项目权限。
+- `ProjectMember`：表达用户对项目的直接访问关系。
+- `ProjectTeam`：表达团队对项目的访问关系。
+- `VIEW`、`EDIT`、`MANAGE`：通用项目访问级别，后续业务角色在 P2-15 建立。
+
+P2-14 只建立关系和通用访问级别；Owner、Producer 等业务角色由 P2-15 建立，API 权限守卫和资源级访问检查由 P2-16 建立。API 不能仅凭前端传入的 `projectId` 信任权限，必须在服务端验证用户、团队、成员状态和项目访问级别。
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
 ## 环境变量
@@ -32,7 +46,9 @@ $env:DATABASE_URL = "postgresql://comicdrama:change-me@localhost:5432/comicdrama
 ```powershell
 npm ci
 npm run prisma:validate --workspace api
-npx prisma migrate deploy --schema api/prisma/schema.prisma
+npm run prisma:migrate:deploy --workspace api
+npm run prisma:migrate:status --workspace api
+npm run prisma:seed --workspace api
 ```
 
 开发环境需要创建新迁移时，使用 `prisma migrate dev`，不要直接修改已经提交的迁移文件。

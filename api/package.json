@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "prisma:validate": "prisma validate --schema prisma/schema.prisma",
     "prisma:format": "prisma format --schema prisma/schema.prisma",
-    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma"
+    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
+    "prisma:migrate:status": "prisma migrate status --schema prisma/schema.prisma",
+    "prisma:seed": "prisma db seed --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.11",
@@ -25,5 +27,8 @@
     "@types/node": "^22.13.4",
     "typescript": "^5.7.3",
     "prisma": "^6.19.0"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
