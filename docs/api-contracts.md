@@ -179,3 +179,29 @@ TXT 和 Markdown 的解析结果写入 `SourceDocumentVersion.textContent` 和 `
 ```
 
 解析状态流转为 `IMPORTING` → `PARSING` → `READY`，失败时为 `FAILED` 并保存 `errorMessage`。重复调用是可重入的：服务会先删除该版本旧的 `SourceSegment`，清空旧解析缓存，再重新读取原始对象并创建同一版本的新解析结果。P3-05 将补充原文预览、章节选择和段落定位查询 API。
+
+## 原文读取与定位（P3-05）
+
+原文解析完成后，客户端使用项目 `VIEW` 权限读取规范化正文和来源树：
+
+```text
+GET /api/projects/:projectId/source-documents/:documentId/versions/:versionId/preview
+  ?segmentId=<segment-uuid>
+GET /api/projects/:projectId/source-documents/:documentId/versions/:versionId/preview
+  ?startOffset=0&endOffset=2000
+GET /api/projects/:projectId/source-documents/:documentId/versions/:versionId/segments
+  ?type=CHAPTER&parentId=<segment-uuid>&offset=512
+GET /api/projects/:projectId/source-documents/:documentId/versions/:versionId/segments/:segmentId
+x-user-id: <active-user-uuid>
+```
+
+约束：
+
+- 所有端点都会校验 `projectId`、`documentId`、`versionId` 的归属关系；仅 `READY` 版本可读取；
+- `preview` 默认从 `startOffset=0` 返回最多 2,000 个 UTF-16 code unit，单次范围不能超过 10,000；`segmentId` 与偏移范围不能同时使用；
+- `startOffset`/`endOffset` 是规范化正文的 UTF-16 code unit 半开区间 `[startOffset, endOffset)`；
+- `segments` 支持按 `type`、`parentId` 过滤；传入 `offset` 时返回包含该偏移位置的节点，并优先返回最小覆盖范围；
+- `segments/:segmentId` 返回节点、父级祖先链和直接子节点，适合章节选择、段落定位和编辑器树形导航；
+- 读取 API 不改变原始对象、版本事实或解析结果，也不会创建新的版本。
+
+成功响应统一使用 `{ data, meta }`；来源节点包含 `id`、`type`、`ordinal`、`title`、`content`、`startOffset`、`endOffset`、`startLine`、`endLine` 和 `parentId`。
