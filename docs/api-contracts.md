@@ -67,3 +67,32 @@ x-user-id: <active-user-uuid>
 ```
 
 未认证返回 `401`，缺少项目范围或无权访问返回 `403`。项目授权决策不得由前端传入的 `projectId` 或访问级别直接决定。
+
+## 审计记录（P2-17）
+
+关键业务接口可以使用 `@AuditAction(...)` 声明审计动作，由全局 `AuditLogInterceptor` 在接口成功完成后追加写入 `AuditLog`。支持的动作包括：
+
+- `IMPORT`：导入原文或外部数据；
+- `GENERATE`：提交或执行生成任务；
+- `UPDATE`：修改业务资源；
+- `REVIEW`：提交审核、通过、驳回或要求修改；
+- `LOCK`：锁定资源或版本；
+- `EXPORT`：导出媒体或项目文件；
+- `DELETE` / `ARCHIVE`：删除或归档资源。
+
+示例：
+
+```typescript
+@AuditAction({
+  action: 'EXPORT',
+  entityType: 'RenderJob',
+  entityIdParam: 'renderJobId',
+  projectIdParam: 'projectId',
+})
+@Post(':projectId/render-jobs/:renderJobId/export')
+export(projectId: string, renderJobId: string) {
+  // 成功返回后自动写入 AuditLog。
+}
+```
+
+每条记录至少保存动作、实体类型，并尽可能保存项目 ID、实体 ID、操作者 ID、操作者类型、`x-request-id`、`x-trace-id`/响应 traceId 和 HTTP 请求元数据。需要保存变更前后快照时，由业务服务调用 `AuditLogService.recordRequestAction` 显式传入 `before` 和 `after`；默认不自动记录请求体，避免把密码、令牌或 Provider 密钥写入审计日志。审计写入失败不会静默忽略，已声明审计的接口会返回失败，从而避免业务成功但审计缺失。

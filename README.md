@@ -131,5 +131,6 @@ P2 已按实施计划逐步建立 PostgreSQL 事实源：
 - P2-14：User、Team、TeamMember、ProjectMember、ProjectTeam 与通用项目访问级别
 - P2-15：首版业务角色与项目成员/团队角色分配
 - P2-16：API 级权限守卫、项目资源级访问检查和业务角色访问级别校验
+- P2-17：关键导入、生成、修改、审核、锁定、导出、删除/归档操作的 AuditLog 自动记录
 
 详细字段、迁移约束和后续业务校验见 [`api/prisma/README.md`](api/prisma/README.md)；迁移执行、种子数据与回滚流程见 [`docs/database-migrations.md`](docs/database-migrations.md)。

@@ -332,7 +332,12 @@
   - 验证方式：Prisma validate/generate、API typecheck/lint/build、Prettier、`git diff --check`；数据库可用后使用种子用户调用受保护端点验证 401/403、直接成员权限和团队继承权限。
   - 验证结果：新增 `ProjectAccessGuard`、`@ProjectAccess` 元数据装饰器、项目访问决策服务和受保护的访问检查端点；服务端按用户状态、成员状态、团队继承、访问级别和业务角色计算权限。
   - 备注：当前 `x-user-id` 仅是受信任网关身份适配层，生产环境必须由认证网关或身份中间件提供，不得把客户端任意提交的用户 ID 当作凭据。
-- [ ] `P2-17` 将关键操作写入 AuditLog：导入、生成、修改、审核、锁定、导出、删除/归档。
+- [x] `P2-17` 将关键操作写入 AuditLog：导入、生成、修改、审核、锁定、导出、删除/归档。
+  - 完成日期：2026-09-22。
+  - 实现位置：`api/src/audit/audit-action.decorator.ts`、`api/src/audit/audit-log.interceptor.ts`、`api/src/audit/audit-log.service.ts`、`api/src/audit/audit-log.module.ts`、`api/src/app.module.ts`、`docs/api-contracts.md`。
+  - 验证方式：Prisma generate、API typecheck/lint/build、全仓库 Prettier、`git diff --check`；数据库可用后通过带 `@AuditAction` 的真实业务接口验证 AuditLog 追加写入及 requestId/traceId/操作者/项目归属。
+  - 验证结果：新增 `AuditLogService` 统一写入审计记录，`@AuditAction` 与全局 `AuditLogInterceptor` 自动捕获成功关键操作；支持导入、生成、修改、审核、锁定、导出、删除、归档动作，并记录操作者、项目、实体、请求/追踪 ID、HTTP 元数据和可选响应快照。before/after 快照可由业务服务在执行前后显式传入，避免错误记录请求体中的敏感数据。
+  - 备注：审计写入失败不会静默忽略，会使已声明审计的接口失败；当前身份沿用 P2-16 的受信任 `x-user-id` 适配层，生产环境必须由认证网关或身份中间件覆写。
 - [ ] `P2-18` 实现版本创建规则：已进入下游的版本不可原地修改，只能创建新版本。
   - 阶段出口：能通过数据库测试证明权限隔离、版本不可变性和关键操作可追溯。
 
