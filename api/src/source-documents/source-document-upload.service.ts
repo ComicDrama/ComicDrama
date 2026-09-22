@@ -1,6 +1,8 @@
-﻿import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { SourceDocumentStatus, SourceDocumentType, SourceVersionStatus } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
+import { VersioningService } from '../versioning/versioning.service';
 import { ObjectStorageService } from './object-storage.service';
 
 export type UploadDocumentType = 'TXT' | 'MARKDOWN' | 'DOCX';
@@ -22,6 +24,9 @@ export interface AcceptedSourceUpload {
   storageKey: string;
   storageStatus: 'STORED';
   parserStatus: 'PENDING_PARSER';
+  documentId: string;
+  versionId: string;
+  version: number;
 }
 
 const FILE_RULES: Record<UploadDocumentType, { extensions: string[]; mimeTypes: string[] }> = {
@@ -44,7 +49,10 @@ const FILE_RULES: Record<UploadDocumentType, { extensions: string[]; mimeTypes: 
 
 @Injectable()
 export class SourceDocumentUploadService {
-  constructor(private readonly objectStorage: ObjectStorageService) {}
+  constructor(
+    private readonly objectStorage: ObjectStorageService,
+    private readonly versioning: VersioningService,
+  ) {}
 
   async accept(projectId: string, file: SourceUploadFile): Promise<AcceptedSourceUpload> {
     const documentType = this.validateFile(file);
@@ -68,6 +76,30 @@ export class SourceDocumentUploadService {
       );
     }
 
+    let documentVersion: Awaited<ReturnType<VersioningService['createSourceDocumentWithVersion']>>;
+    try {
+      documentVersion = await this.versioning.createSourceDocumentWithVersion({
+        projectId,
+        document: {
+          name: file.originalname,
+          documentType: documentType as SourceDocumentType,
+          status: SourceDocumentStatus.IMPORTING,
+        },
+        version: {
+          fileName: file.originalname,
+          fileExtension: extension,
+          mimeType: file.mimetype,
+          byteSize: BigInt(file.size),
+          sha256,
+          storageKey,
+          status: SourceVersionStatus.IMPORTING,
+        },
+      });
+    } catch (error) {
+      await this.objectStorage.deleteObject(storageKey);
+      throw new InternalServerErrorException(`原文版本登记失败: ${this.describeError(error)}`);
+    }
+
     return {
       uploadId,
       fileName: file.originalname,
@@ -78,6 +110,9 @@ export class SourceDocumentUploadService {
       storageKey,
       storageStatus: 'STORED',
       parserStatus: 'PENDING_PARSER',
+      documentId: documentVersion.document.id,
+      versionId: documentVersion.version.id,
+      version: documentVersion.version.version,
     };
   }
 

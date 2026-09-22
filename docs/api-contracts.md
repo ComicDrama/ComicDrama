@@ -132,4 +132,4 @@ x-user-id: <active-user-uuid>
 - `byteSize`、`mimeType`：文件大小和 MIME 类型；
 - `parserStatus`：`PENDING_PARSER`，表示正文尚未解析。
 
-当前仍未在本端点创建 `SourceDocument` / `SourceDocumentVersion` 数据库事实源；版本记录、导入时间、解析状态和正式对象路径由 P3-03 完成。对象存储通过 `@aws-sdk/client-s3` 的 S3-compatible 接口访问，可连接本地 MinIO、AWS S3 或其他兼容服务。
+上传成功后会在同一业务流程中创建 `SourceDocument` 和首个 `SourceDocumentVersion`，并返回 `documentId`、`versionId` 和 `version`。版本记录导入时间、解析状态 `IMPORTING`、文件元数据和暂存对象路径；数据库登记失败时会尝试删除已上传对象，避免产生无法追溯的暂存文件。正文解析仍由后续 P3 任务完成。对象存储通过 `@aws-sdk/client-s3` 的 S3-compatible 接口访问，可连接本地 MinIO、AWS S3 或其他兼容服务。

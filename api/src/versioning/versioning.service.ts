@@ -15,6 +15,15 @@ export interface CreateSourceDocumentVersionInput {
   data: Omit<Prisma.SourceDocumentVersionUncheckedCreateInput, 'id' | 'documentId' | 'version'>;
 }
 
+export interface CreateSourceDocumentWithVersionInput {
+  projectId: string;
+  document: Omit<
+    Prisma.SourceDocumentUncheckedCreateInput,
+    'id' | 'projectId' | 'version' | 'currentVersionId'
+  >;
+  version: Omit<Prisma.SourceDocumentVersionUncheckedCreateInput, 'id' | 'documentId' | 'version'>;
+}
+
 export interface CreateScriptVersionInput {
   scriptId: string;
   data: Omit<
@@ -84,6 +93,28 @@ export class VersioningService {
         data: { version, currentVersionId: created.id },
       });
       return created;
+    });
+  }
+
+  async createSourceDocumentWithVersion(input: CreateSourceDocumentWithVersionInput) {
+    return this.prisma.$transaction(async (tx) => {
+      const project = await tx.project.findUnique({ where: { id: input.projectId } });
+      if (!project) {
+        throw new NotFoundException('项目不存在');
+      }
+
+      const document = await tx.sourceDocument.create({
+        data: { ...input.document, projectId: input.projectId },
+      });
+      const version = await tx.sourceDocumentVersion.create({
+        data: { ...input.version, documentId: document.id, version: 1 },
+      });
+      const updatedDocument = await tx.sourceDocument.update({
+        where: { id: document.id },
+        data: { version: 1, currentVersionId: version.id },
+      });
+
+      return { document: updatedDocument, version };
     });
   }
 

@@ -364,7 +364,12 @@
   - 验证方式：SHA-256 计算、API typecheck/lint/build、Prettier、`git diff --check`、Compose 配置检查；真实 MinIO 上传需在 Docker 服务实际启动后验证。
   - 验证结果：上传服务计算文件 SHA-256，并将 TXT、DOCX 或 Markdown 原始文件写入 S3-compatible 对象存储暂存路径 `projects/{projectId}/source/uploads/{uploadId}/original.ext`，返回 `storageKey`、`sha256`、MIME、大小和 `STORED` 状态；本地未设置 endpoint 时默认使用 `http://localhost:9000` 和 MinIO 开发凭据，Compose 环境通过服务名 `minio` 注入配置。
   - 备注：实现不绑定 AWS，支持本地 MinIO、AWS S3 和其他 S3-compatible 服务；本次若未启动 Docker/MinIO，不宣称真实对象写入已完成。
-- [ ] `P3-03` 创建不可变 SourceDocumentVersion，记录导入时间、解析状态和文件元数据。
+- [x] `P3-03` 创建不可变 SourceDocumentVersion，记录导入时间、解析状态和文件元数据。
+  - 完成日期：2026-09-22。
+  - 实现位置：`api/src/versioning/versioning.service.ts`、`api/src/source-documents/source-document-upload.service.ts`、`api/src/source-documents/source-document.module.ts`、`docs/api-contracts.md`。
+  - 验证方式：API lint/typecheck/build、全仓库 Prettier、`git diff --check`；真实数据库事务和对象清理需在 PostgreSQL/MinIO 启动后执行集成验证。
+  - 验证结果：上传成功后在事务内创建 `SourceDocument` 聚合根和首个 `SourceDocumentVersion`，保存文件名、扩展名、MIME、大小、SHA-256、storageKey、导入时间和 `IMPORTING` 状态，并返回文档/版本 ID；数据库登记失败时尝试删除已上传对象。
+  - 备注：版本写入统一经过 `VersioningService`，后续修订继续遵循追加式不可变版本规则；本次未连接 PostgreSQL/MinIO，不宣称真实运行验证完成。
 - [ ] `P3-04` 完成章节、段落、字符偏移量和来源位置解析。
 - [ ] `P3-05` 提供原文预览、章节选择和段落定位 API。
 - [ ] `P3-06` 为 DOCX、EPUB、PDF、Fountain、Final Draft XML 建立 Parser 接口和待实现任务，不在 V1 阻塞主线。
@@ -636,4 +641,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-02`。下一步实施 `P3-03`：创建不可变 SourceDocumentVersion，记录导入时间、解析状态和文件元数据。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-03`。下一步实施 `P3-04`：完成章节、段落、字符偏移量和来源位置解析。
