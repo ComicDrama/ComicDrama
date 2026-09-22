@@ -15,6 +15,7 @@
 - `20260921000100_usage_cost_audit_models` 对应实施计划中的 `P2-11`，建立用量、成本和追加式审计事实源。
 - `20260921000200_core_table_governance` 对应实施计划中的 `P2-12`，补齐核心聚合根治理字段、项目查询路径和生命周期索引。
 - `20260922000100_access_control_models` 对应实施计划中的 `P2-14`，建立 `users`、`teams`、`team_members`、`project_members`、`project_teams` 以及通用项目访问级别。
+- `20260922000200_business_roles` 对应实施计划中的 `P2-15`，建立项目成员和项目团队的规范化业务角色分配。
 
 迁移执行、种子数据、失败处理与回滚边界见 [docs/database-migrations.md](../../docs/database-migrations.md)（实施计划 P2-13）。
 
@@ -28,7 +29,7 @@
 - `ProjectTeam`：表达团队对项目的访问关系。
 - `VIEW`、`EDIT`、`MANAGE`：通用项目访问级别，后续业务角色在 P2-15 建立。
 
-P2-14 只建立关系和通用访问级别；Owner、Producer 等业务角色由 P2-15 建立，API 权限守卫和资源级访问检查由 P2-16 建立。API 不能仅凭前端传入的 `projectId` 信任权限，必须在服务端验证用户、团队、成员状态和项目访问级别。
+P2-14 只建立关系和通用访问级别；P2-15 通过独立角色分配表建立业务角色，避免把角色字符串塞入成员关系或前端状态。API 权限守卫和资源级访问检查由 P2-16 建立。API 不能仅凭前端传入的 `projectId` 信任权限，必须在服务端验证用户、团队、成员状态、项目访问级别和业务角色。
 P2-01 的三个实体均使用 UUID 主键、状态枚举、版本号、创建/更新时间和归档时间；Season 与 Episode 的编号在各自父级范围内唯一。P2-02 的原文版本不可变，原始文件存放在 MinIO/S3，数据库保存元数据、对象存储键和规范化文本。
 
 ## 环境变量
@@ -179,3 +180,13 @@ Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、�
 - `Asset`、`AssetCollection`、`Character`、`Location`、`Prop` 和 `ExportPreset` 的 `projectId` 仍允许为空，表示受治理的全局共享资源；所有业务查询必须显式选择“当前项目资源”或“全局共享资源”。
 
 新增的复合索引覆盖项目 + 状态/归档时间的列表、治理和清理查询；现有按父级、版本、状态和时间的索引继续用于追溯链与 Worker 查询。该迁移包含回填失败即中止的检查，避免在项目归属不完整时静默提交。
+
+## P2-15 首版业务角色
+
+`20260922000200_business_roles` 增加：
+
+- `ProjectRole`：`OWNER`、`PRODUCER`、`DIRECTOR`、`SCREENWRITER`、`STORYBOARD_ARTIST`、`ASSET_ARTIST`、`EDITOR`、`REVIEWER`、`VIEWER`。
+- `ProjectMemberRole`：将业务角色分配给项目内的直接用户成员。
+- `ProjectTeamRole`：将业务角色分配给项目内的团队授权关系；团队成员通过团队授权继承角色，具体有效权限由 P2-16 统一计算。
+
+角色分配表同时保存 `projectId`，用于项目范围查询和一致性检查；同一成员或团队在同一角色上只能有一条有效分配。P2-15 只定义角色数据和分配关系，不在数据库层硬编码每个角色的操作矩阵；操作级能力矩阵和继承/冲突处理由 P2-16 的服务端权限守卫实现。

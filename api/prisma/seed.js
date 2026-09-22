@@ -49,6 +49,8 @@ const ids = {
   teamMemberEditor: '00000000-0000-0000-0000-000000000040',
   projectTeam: '00000000-0000-0000-0000-000000000041',
   projectMemberEditor: '00000000-0000-0000-0000-000000000042',
+  projectMemberEditorRole: '00000000-0000-0000-0000-000000000043',
+  projectTeamOwnerRole: '00000000-0000-0000-0000-000000000044',
 };
 
 async function seed() {
@@ -690,6 +692,27 @@ async function seed() {
       },
     });
 
+    await tx.projectMemberRole.upsert({
+      where: { id: ids.projectMemberEditorRole },
+      update: {},
+      create: {
+        id: ids.projectMemberEditorRole,
+        projectId: ids.project,
+        projectMemberId: ids.projectMemberEditor,
+        role: 'EDITOR',
+      },
+    });
+
+    await tx.projectTeamRole.upsert({
+      where: { id: ids.projectTeamOwnerRole },
+      update: {},
+      create: {
+        id: ids.projectTeamOwnerRole,
+        projectId: ids.project,
+        projectTeamId: ids.projectTeam,
+        role: 'OWNER',
+      },
+    });
     await tx.auditLog.upsert({
       where: { id: ids.auditLog },
       update: {},

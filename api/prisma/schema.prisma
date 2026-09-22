@@ -37,6 +37,18 @@ enum ProjectAccessLevel {
   MANAGE
 }
 
+enum ProjectRole {
+  OWNER
+  PRODUCER
+  DIRECTOR
+  SCREENWRITER
+  STORYBOARD_ARTIST
+  ASSET_ARTIST
+  EDITOR
+  REVIEWER
+  VIEWER
+}
+
 enum SeasonStatus {
   DRAFT
   ACTIVE
@@ -494,6 +506,8 @@ model Project {
   auditLogs        AuditLog[]
   members          ProjectMember[]
   teamGrants       ProjectTeam[]
+  memberRoles      ProjectMemberRole[]
+  teamRoles        ProjectTeamRole[]
 
   @@index([status])
   @@index([archivedAt])
@@ -572,8 +586,9 @@ model ProjectMember {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  project Project             @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user    User                @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  roles   ProjectMemberRole[]
 
   @@unique([projectId, userId])
   @@index([userId, status])
@@ -592,13 +607,44 @@ model ProjectTeam {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  team    Team    @relation(fields: [teamId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  project Project           @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  team    Team              @relation(fields: [teamId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  roles   ProjectTeamRole[]
 
   @@unique([projectId, teamId])
   @@index([teamId, status])
   @@index([projectId, status, accessLevel])
   @@map("project_teams")
+}
+
+model ProjectMemberRole {
+  id              String      @id @default(uuid()) @db.Uuid
+  projectId       String      @db.Uuid
+  projectMemberId String      @db.Uuid
+  role            ProjectRole
+  createdAt       DateTime    @default(now())
+
+  project Project       @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  member  ProjectMember @relation(fields: [projectMemberId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([projectMemberId, role])
+  @@index([projectId, role])
+  @@map("project_member_roles")
+}
+
+model ProjectTeamRole {
+  id            String      @id @default(uuid()) @db.Uuid
+  projectId     String      @db.Uuid
+  projectTeamId String      @db.Uuid
+  role          ProjectRole
+  createdAt     DateTime    @default(now())
+
+  project Project     @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  team    ProjectTeam @relation(fields: [projectTeamId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([projectTeamId, role])
+  @@index([projectId, role])
+  @@map("project_team_roles")
 }
 
 model Season {

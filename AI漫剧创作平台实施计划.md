@@ -320,7 +320,12 @@
   - 验证方式：Prisma format/validate、migration SQL review、seed syntax、Prettier、`git diff --check`；数据库可用后执行 migrate deploy/status，并验证 seed 关系和项目访问级别。
   - 验证结果：Schema 和 migration 静态检查通过；P2-14 迁移部署待 PostgreSQL 恢复后执行，seed 已补充用户、团队、成员和项目授权关系。
   - 备注：P2-14 只建立通用访问级别，业务角色在 P2-15，API 权限守卫在 P2-16。
-- [ ] `P2-15` 首版实现 Owner、Producer、Director、Screenwriter、Storyboard Artist、Asset Artist、Editor、Reviewer、Viewer 角色。
+- [x] `P2-15` 首版实现 Owner、Producer、Director、Screenwriter、Storyboard Artist、Asset Artist、Editor、Reviewer、Viewer 角色。
+  - 完成日期：2026-09-22。
+  - 实现位置：`api/prisma/schema.prisma`、`api/prisma/migrations/20260922000200_business_roles/migration.sql`、`api/prisma/seed.js`、`api/prisma/README.md`、`README.md`。
+  - 验证方式：Prisma format/validate、migration SQL review、seed syntax、Prettier、`git diff --check`；数据库可用后执行 migrate deploy/status，并验证直接成员与团队角色分配关系。
+  - 验证结果：新增 `ProjectRole` 枚举及 `ProjectMemberRole`/`ProjectTeamRole` 规范化分配模型；seed 已覆盖 EDITOR 直接成员角色和 OWNER 团队角色。迁移部署待 PostgreSQL 恢复后执行。
+  - 备注：P2-15 只定义角色和分配关系，角色操作矩阵、团队继承和资源级权限在 P2-16 实现。
 - [ ] `P2-16` 实现 API 级权限守卫和资源级访问检查。
 - [ ] `P2-17` 将关键操作写入 AuditLog：导入、生成、修改、审核、锁定、导出、删除/归档。
 - [ ] `P2-18` 实现版本创建规则：已进入下游的版本不可原地修改，只能创建新版本。
@@ -606,4 +611,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-14`。下一步实施 `P2-15`，建立首版业务角色。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-15`。下一步实施 `P2-16`，实现 API 权限守卫和资源级访问检查。
