@@ -1,4 +1,4 @@
-# API 与跨服务契约
+﻿# API 与跨服务契约
 
 ## API 响应
 
@@ -212,7 +212,7 @@ x-user-id: <active-user-uuid>
 
 当前已实现：
 
-- `TXT`、`MARKDOWN`：`builtin-text-markdown@1.0.0`，沿用 P3-04 的章节、段落和 UTF-16 偏移量解析。
+- `TXT`、`MARKDOWN`：`builtin-text-markdown@1.1.0`，沿用 P3-04 的章节、段落和 UTF-16 偏移量解析。
 
 已登记但暂未实现，当前不会把二进制内容误当作 UTF-8 文本解析：
 
@@ -223,3 +223,38 @@ x-user-id: <active-user-uuid>
 - `FINAL_DRAFT_XML`：读取 FDX 段落类型、样式和脚本元素层级。
 
 对尚未实现的格式调用解析端点时，接口返回 `400 Bad Request`，响应错误中包含对应的 P3-06 待实现任务；原始文件仍可按 P3-01～P3-03 的流程保存到对象存储并登记版本事实。
+
+## 文档清洗、分段与可重入任务（P3-07）
+
+P3-07 在不修改对象存储原始文件的前提下，对 TXT/Markdown 内容执行确定性清洗和来源树分段：
+
+- 删除正文开头的 UTF-8 BOM（`U+FEFF`）；
+- 将 CRLF 和孤立 CR 统一为 LF；
+- 保留非空文本中的空格和空白行，空白行只作为段落边界，不生成空段；
+- Markdown ATX 标题继续按层级生成 `CHAPTER` 或 `SECTION`，连续非空文本生成 `PARAGRAPH`；
+- `SourceDocumentVersion.textContent` 保存清洗后的正文，所有 `SourceSegment` 偏移量均对应清洗后文本的 UTF-16 code unit 半开区间；
+- 根节点和分段 metadata 记录 `offsetUnit`、`offsetRange`、`lineBase` 及清洗策略，当前 Parser 版本为 `builtin-text-markdown@1.1.0`。
+
+分段任务使用现有 `Task`/`TaskAttempt` 事实源，不重复增加任务表：
+
+```text
+POST /api/projects/:projectId/source-documents/:documentId/versions/:versionId/segment
+x-user-id: <active-user-uuid>
+x-trace-id: <optional-trace-id>
+
+GET /api/projects/:projectId/source-document-tasks/:taskId
+x-user-id: <active-user-uuid>
+
+POST /api/projects/:projectId/source-document-tasks/:taskId/retry
+x-user-id: <active-user-uuid>
+x-trace-id: <optional-trace-id>
+```
+
+约束和幂等规则：
+
+- 分段任务的稳定幂等键为 `SOURCE_DOCUMENT_SEGMENTATION:<versionId>`，由 `Task.idempotencyKey` 唯一约束保证同一版本不会重复创建任务；
+- 首次请求创建 `PENDING` 任务并执行一次，成功后为 `SUCCEEDED`，任务结果保存解析摘要和分段计数；
+- 同一版本重复请求复用既有任务：成功任务直接返回，运行中任务不重复执行，失败任务需通过 retry 端点按 `maxAttempts` 和最近一次 `TaskAttempt.retryable` 决定是否重试；
+- 每次实际执行创建一个 `TaskAttempt`，失败时同时写入任务和尝试记录的错误码、错误信息及重试状态；
+- 创建/重试接口需要项目 `EDIT` 权限，查询接口需要 `VIEW` 权限，接口成功完成后写入 `IMPORT` 类型 `AuditLog`；
+- 当前执行器在 API 内同步完成解析，后续接入 P6 Worker/Streams 时可复用同一 `Task`、`TaskAttempt` 和幂等键协议。

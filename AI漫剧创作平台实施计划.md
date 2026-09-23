@@ -1,4 +1,4 @@
-# AI漫剧创作平台实施计划
+﻿# AI漫剧创作平台实施计划
 
 > **版本**：v0.1
 > **制定日期**：2026-09-19
@@ -391,7 +391,12 @@
 
 ## P3.2 分层理解流水线
 
-- [ ] `P3-07` 实现文档清洗、切章、切段和可重入任务。
+- [x] `P3-07` 实现文档清洗、切章、切段和可重入任务。
+  - 完成日期：2026-09-23。
+  - 实现位置：`api/src/source-documents/source-document-parser.service.ts`、`api/src/source-documents/source-document-parse.service.ts`、`api/src/source-documents/source-document-segmentation.service.ts`、`api/src/source-documents/source-document-segmentation.controller.ts`、`api/src/source-documents/source-document-upload.controller.ts`、`api/src/source-documents/source-document.module.ts`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`。
+  - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实 PostgreSQL/对象存储请求需在 Docker 服务可用后补充执行。
+  - 验证结果：TXT/Markdown 清洗会删除 BOM、统一换行并保留稳定 UTF-16 偏移；现有章节/小节/段落来源树写入 `SourceSegment`；新增 `SOURCE_DOCUMENT_SEGMENTATION` 可重入任务，使用 `Task.idempotencyKey`、`TaskAttempt`、状态机和显式 retry 端点避免重复执行，并将成功/失败结果写入任务事实源。
+  - 备注：当前任务执行器在 API 内同步调用解析服务；后续接入 P6 Worker/Streams 时复用同一幂等键和任务记录，不把原始文件写入数据库。
 - [ ] `P3-08` 实现分章实体提取：角色、地点、道具、组织、时间、事件。
 - [ ] `P3-09` 实现跨章节实体合并和别名归一化。
 - [ ] `P3-10` 实现人物关系、时间线和关键事件的结构化结果。
@@ -656,4 +661,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-06`。下一步实施 `P3-07`：实现文档清洗、切章、切段和可重入任务。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-07`。下一步实施 `P3-08`：实现分章实体提取。

@@ -1,4 +1,4 @@
-export const TASK_STATUSES = [
+﻿export const TASK_STATUSES = [
   'PENDING',
   'QUEUED',
   'RUNNING',
@@ -11,6 +11,7 @@ export const TASK_STATUSES = [
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 export type TaskType =
+  | 'SOURCE_DOCUMENT_SEGMENTATION'
   | 'LLM_EXTRACT'
   | 'SCRIPT_GENERATE'
   | 'STORYBOARD_GENERATE'

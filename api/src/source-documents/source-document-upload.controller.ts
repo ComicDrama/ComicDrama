@@ -1,6 +1,7 @@
 ﻿import {
   BadRequestException,
   Controller,
+  Headers,
   Param,
   Post,
   UploadedFile,
@@ -17,6 +18,10 @@ import {
   type ParsedSourceVersionResult,
 } from './source-document-parse.service';
 import {
+  SourceDocumentSegmentationService,
+  type SegmentationTaskView,
+} from './source-document-segmentation.service';
+import {
   SourceDocumentUploadService,
   type SourceUploadFile,
 } from './source-document-upload.service';
@@ -27,6 +32,7 @@ export class SourceDocumentUploadController {
   constructor(
     private readonly uploads: SourceDocumentUploadService,
     private readonly parser: SourceDocumentParseService,
+    private readonly segmentation: SourceDocumentSegmentationService,
   ) {}
 
   @Post('upload')
@@ -49,6 +55,26 @@ export class SourceDocumentUploadController {
         projectId,
         message: '文件已写入对象存储；解析将在后续任务中完成',
       },
+    };
+  }
+
+  @Post(':documentId/versions/:versionId/segment')
+  @ProjectAccess(ProjectAccessLevel.EDIT)
+  @AuditAction({
+    action: 'IMPORT',
+    entityType: 'SourceDocumentSegmentationTask',
+    projectIdParam: 'projectId',
+    captureResponseSnapshot: true,
+  })
+  async segment(
+    @Param('projectId') projectId: string,
+    @Param('documentId') documentId: string,
+    @Param('versionId') versionId: string,
+    @Headers('x-trace-id') traceId?: string,
+  ): Promise<{ data: SegmentationTaskView; meta: { projectId: string } }> {
+    return {
+      data: await this.segmentation.request(projectId, documentId, versionId, traceId),
+      meta: { projectId },
     };
   }
 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+﻿import { Injectable } from '@nestjs/common';
 import { SourceDocumentType, SourceSegmentType } from '@prisma/client';
 import {
   type ParsedSourceSegment,
@@ -21,7 +21,7 @@ interface HeadingLine {
 }
 
 const PARSER_NAME = 'builtin-text-markdown';
-const PARSER_VERSION = '1.0.0';
+const PARSER_VERSION = '1.1.0';
 
 @Injectable()
 export class SourceDocumentParserService implements SourceDocumentParser {
@@ -32,7 +32,7 @@ export class SourceDocumentParserService implements SourceDocumentParser {
   readonly supportedDocumentTypes = [SourceDocumentType.TXT, SourceDocumentType.MARKDOWN] as const;
 
   parse(text: string): ParsedSourceText {
-    const textContent = normalizeLineEndings(text);
+    const textContent = cleanSourceText(text);
     const lines = splitLines(textContent);
     const segments: ParsedSourceSegment[] = [
       {
@@ -46,6 +46,7 @@ export class SourceDocumentParserService implements SourceDocumentParser {
           offsetUnit: 'utf16-code-unit',
           offsetRange: 'half-open',
           lineBase: 1,
+          normalization: 'bom-removed,line-endings-lf,blank-lines-ignored',
         },
       },
     ];
@@ -135,9 +136,11 @@ export class SourceDocumentParserService implements SourceDocumentParser {
   }
 }
 
-export function normalizeLineEndings(text: string): string {
-  return text.replace(/\r\n?/g, '\n');
+export function cleanSourceText(text: string): string {
+  return text.replace(/^\uFEFF/u, '').replace(/\r\n?/g, '\n');
 }
+
+export const normalizeLineEndings = cleanSourceText;
 
 function splitLines(text: string): SourceLine[] {
   const rawLines = text.split('\n');
