@@ -119,6 +119,21 @@ enum SourceVersionEntityResolutionStatus {
   FAILED
 }
 
+enum SourceVersionNarrativeStructureStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum NarrativeRelationshipKind {
+  CO_OCCURRENCE
+}
+
+enum NarrativeEventParticipantRole {
+  MENTIONED_IN_EVENT_CHAPTER
+}
+
 enum ScriptStatus {
   DRAFT
   IN_PROGRESS
@@ -511,6 +526,7 @@ model Project {
   sourceDocuments                SourceDocument[]
   chapterEntityExtractions       ChapterEntityExtraction[]
   sourceVersionEntityResolutions SourceVersionEntityResolution[]
+  narrativeStructures            NarrativeStructure[]
   scripts                        Script[]
   shots                          Shot[]
   timelines                      Timeline[]
@@ -738,6 +754,7 @@ model SourceDocument {
   currentVersion                 SourceDocumentVersion?          @relation("SourceDocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   chapterEntityExtractions       ChapterEntityExtraction[]
   sourceVersionEntityResolutions SourceVersionEntityResolution[]
+  narrativeStructures            NarrativeStructure[]
 
   @@index([projectId, status])
   @@index([projectId, archivedAt])
@@ -771,6 +788,7 @@ model SourceDocumentVersion {
   scriptVersions                 ScriptVersion[]
   chapterEntityExtractions       ChapterEntityExtraction[]
   sourceVersionEntityResolutions SourceVersionEntityResolution[]
+  narrativeStructures            NarrativeStructure[]
 
   @@unique([documentId, version])
   @@index([documentId, status])
@@ -794,15 +812,17 @@ model SourceSegment {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  version                  SourceDocumentVersion     @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  parent                   SourceSegment?            @relation("SourceSegmentTree", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  children                 SourceSegment[]           @relation("SourceSegmentTree")
-  scriptScenes             Scene[]                   @relation("SceneSourceSegment")
-  scriptBeats              Beat[]                    @relation("BeatSourceSegment")
-  scriptDialogues          Dialogue[]                @relation("DialogueSourceSegment")
-  shotVersions             ShotVersion[]             @relation("ShotVersionSourceSegment")
-  chapterEntityExtractions ChapterEntityExtraction[] @relation("ChapterEntityExtractionChapter")
-  extractedEntityMentions  ExtractedEntityMention[]
+  version                       SourceDocumentVersion           @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent                        SourceSegment?                  @relation("SourceSegmentTree", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  children                      SourceSegment[]                 @relation("SourceSegmentTree")
+  scriptScenes                  Scene[]                         @relation("SceneSourceSegment")
+  scriptBeats                   Beat[]                          @relation("BeatSourceSegment")
+  scriptDialogues               Dialogue[]                      @relation("DialogueSourceSegment")
+  shotVersions                  ShotVersion[]                   @relation("ShotVersionSourceSegment")
+  chapterEntityExtractions      ChapterEntityExtraction[]       @relation("ChapterEntityExtractionChapter")
+  extractedEntityMentions       ExtractedEntityMention[]
+  narrativeEventCandidates      NarrativeEventCandidate[]
+  narrativeRelationshipEvidence NarrativeRelationshipEvidence[]
 
   @@unique([versionId, ordinal])
   @@index([versionId, type])
@@ -894,10 +914,11 @@ model SourceVersionEntityResolution {
   createdAt         DateTime                            @default(now())
   updatedAt         DateTime                            @updatedAt
 
-  project           Project               @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceDocument    SourceDocument        @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceVersion     SourceDocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  canonicalEntities CanonicalEntity[]
+  project             Project               @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument      SourceDocument        @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceVersion       SourceDocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  canonicalEntities   CanonicalEntity[]
+  narrativeStructures NarrativeStructure[]
 
   @@unique([sourceVersionId, normalizerName, normalizerVersion])
   @@index([projectId, status])
@@ -917,9 +938,13 @@ model CanonicalEntity {
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
 
-  resolution SourceVersionEntityResolution @relation(fields: [resolutionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  aliases    CanonicalEntityAlias[]
-  members    CanonicalEntityMember[]
+  resolution                 SourceVersionEntityResolution    @relation(fields: [resolutionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  aliases                    CanonicalEntityAlias[]
+  members                    CanonicalEntityMember[]
+  narrativeEventCandidates   NarrativeEventCandidate[]
+  narrativeEventParticipants NarrativeEventParticipant[]
+  relationshipSources        NarrativeRelationshipCandidate[] @relation("NarrativeRelationshipSource")
+  relationshipTargets        NarrativeRelationshipCandidate[] @relation("NarrativeRelationshipTarget")
 
   @@unique([resolutionId, ordinal])
   @@unique([resolutionId, type, normalizedName])
@@ -952,11 +977,118 @@ model CanonicalEntityMember {
   confidence        Float?
   createdAt         DateTime @default(now())
 
-  canonicalEntity CanonicalEntity @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  extractedEntity ExtractedEntity @relation(fields: [extractedEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  canonicalEntity          CanonicalEntity           @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  extractedEntity          ExtractedEntity           @relation(fields: [extractedEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  narrativeEventCandidates NarrativeEventCandidate[]
 
   @@index([canonicalEntityId])
   @@map("canonical_entity_members")
+}
+
+model NarrativeStructure {
+  id                 String                                @id @default(uuid()) @db.Uuid
+  projectId          String                                @db.Uuid
+  sourceDocumentId   String                                @db.Uuid
+  sourceVersionId    String                                @db.Uuid
+  entityResolutionId String                                @db.Uuid
+  analyzerName       String                                @db.VarChar(120)
+  analyzerVersion    String                                @db.VarChar(50)
+  status             SourceVersionNarrativeStructureStatus @default(PENDING)
+  errorMessage       String?
+  analyzedAt         DateTime?
+  createdAt          DateTime                              @default(now())
+  updatedAt          DateTime                              @updatedAt
+
+  project          Project                          @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument   SourceDocument                   @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceVersion    SourceDocumentVersion            @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  entityResolution SourceVersionEntityResolution    @relation(fields: [entityResolutionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  relationships    NarrativeRelationshipCandidate[]
+  events           NarrativeEventCandidate[]
+
+  @@unique([sourceVersionId, analyzerName, analyzerVersion])
+  @@index([projectId, status])
+  @@index([sourceDocumentId])
+  @@map("narrative_structures")
+}
+
+model NarrativeRelationshipCandidate {
+  id                      String                    @id @default(uuid()) @db.Uuid
+  structureId             String                    @db.Uuid
+  sourceCanonicalEntityId String                    @db.Uuid
+  targetCanonicalEntityId String                    @db.Uuid
+  kind                    NarrativeRelationshipKind @default(CO_OCCURRENCE)
+  confidence              Float?
+  occurrenceCount         Int                       @default(0)
+  metadata                Json?
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+
+  structure    NarrativeStructure              @relation(fields: [structureId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceEntity CanonicalEntity                 @relation("NarrativeRelationshipSource", fields: [sourceCanonicalEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  targetEntity CanonicalEntity                 @relation("NarrativeRelationshipTarget", fields: [targetCanonicalEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  evidence     NarrativeRelationshipEvidence[]
+
+  @@unique([structureId, sourceCanonicalEntityId, targetCanonicalEntityId, kind])
+  @@index([structureId, kind])
+  @@map("narrative_relationship_candidates")
+}
+
+model NarrativeRelationshipEvidence {
+  id               String   @id @default(uuid()) @db.Uuid
+  relationshipId   String   @db.Uuid
+  chapterSegmentId String   @db.Uuid
+  createdAt        DateTime @default(now())
+
+  relationship   NarrativeRelationshipCandidate @relation(fields: [relationshipId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  chapterSegment SourceSegment                  @relation(fields: [chapterSegmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([relationshipId, chapterSegmentId])
+  @@index([chapterSegmentId])
+  @@map("narrative_relationship_evidence")
+}
+
+model NarrativeEventCandidate {
+  id                String   @id @default(uuid()) @db.Uuid
+  structureId       String   @db.Uuid
+  canonicalEntityId String   @db.Uuid
+  sourceMemberId    String   @db.Uuid
+  chapterSegmentId  String   @db.Uuid
+  chapterOrdinal    Int
+  sourceOrdinal     Int
+  timelineOrder     Int
+  title             String   @db.VarChar(300)
+  confidence        Float?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  structure       NarrativeStructure          @relation(fields: [structureId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  canonicalEntity CanonicalEntity             @relation(fields: [canonicalEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceMember    CanonicalEntityMember       @relation(fields: [sourceMemberId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  chapterSegment  SourceSegment               @relation(fields: [chapterSegmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  participants    NarrativeEventParticipant[]
+
+  @@unique([structureId, sourceMemberId])
+  @@index([structureId, timelineOrder])
+  @@index([chapterSegmentId])
+  @@map("narrative_event_candidates")
+}
+
+model NarrativeEventParticipant {
+  id                String                        @id @default(uuid()) @db.Uuid
+  eventId           String                        @db.Uuid
+  canonicalEntityId String                        @db.Uuid
+  role              NarrativeEventParticipantRole @default(MENTIONED_IN_EVENT_CHAPTER)
+  confidence        Float?
+  createdAt         DateTime                      @default(now())
+
+  event           NarrativeEventCandidate @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  canonicalEntity CanonicalEntity         @relation(fields: [canonicalEntityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([eventId, canonicalEntityId, role])
+  @@index([canonicalEntityId])
+  @@map("narrative_event_participants")
 }
 
 model Script {

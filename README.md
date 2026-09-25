@@ -9,8 +9,8 @@
 - V1 固定测试样本：`V1测试样本_雨夜的灯.md`
 - 架构说明：`AI漫剧平台架构说明书v1.1.md`
 - 实施计划：`AI漫剧创作平台实施计划.md`
-- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-09`
-- 当前阶段：P3 原文导入与内容理解；`P3-01`～`P3-09` 已完成，下一项为 `P3-10`（实现人物关系、时间线和关键事件的结构化结果）
+- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-10`
+- 当前阶段：P3 原文导入与内容理解；`P3-01`～`P3-10` 已完成，下一项为 `P3-11`（生成世界观、角色、场景、道具初稿数据，并保留来源引用）
 - CI：GitHub Actions 已配置 Node.js 22、Python 3.13、Prisma、Prettier、ESLint、Ruff、Pytest、类型检查和构建检查
 
 ## 环境要求
@@ -145,8 +145,9 @@ P3 原文导入进度：
 - P3-07：正文清洗、章节/段落来源树与 `SOURCE_DOCUMENT_SEGMENTATION` 可重入任务（已完成）
 - P3-08：按 `CHAPTER` 提取角色、地点、道具、组织、时间与事件候选；保存实体、证据段落、UTF-16 偏移和行号，支持可重入任务与显式重试（已完成）
 - P3-09：在单一不可变 `SourceDocumentVersion` 内合并已成功的分章候选；以可解释的表面形式、时间时钟和明确称谓规则生成规范实体与别名，并保留全部原始候选来源（已完成）
+- P3-10：在已成功的 P3-09 规范实体上生成同章共现人物关系候选、事件候选及按章节/来源顺序排列的时间线；保留章节证据、时间/地点锚点和同章人物参与者（已完成）
 
-P3-08 当前使用 `builtin-rule-chapter-entity-extractor@1.0.0`，是可重复运行的规则提取器，不等同于 LLM 或人工确认。结果仅是章节内候选事实，不会直接写入 `Character`、`Location`、`Prop` 主数据；P3-09 已完成跨章节候选归并；关系、事件因果和全局时间线留给 P3-10。
+P3-08 当前使用 `builtin-rule-chapter-entity-extractor@1.0.0`，是可重复运行的规则提取器，不等同于 LLM 或人工确认。结果仅是章节内候选事实，不会直接写入 `Character`、`Location`、`Prop` 主数据；P3-09 已完成跨章节候选归并；P3-10 已完成同章共现关系、事件候选和来源顺序时间线。两阶段都不会推断亲属、敌对、因果或其他语义事实。
 
 详细字段、迁移约束和后续业务校验见 [`api/prisma/README.md`](api/prisma/README.md)；迁移执行、种子数据与回滚流程见 [`docs/database-migrations.md`](docs/database-migrations.md)。
 
@@ -155,3 +156,11 @@ P3-08 当前使用 `builtin-rule-chapter-entity-extractor@1.0.0`，是可重复�
 P3-09 基于同一不可变 `SourceDocumentVersion` 中所有成功的 P3-08 分章结果，创建独立的 `CanonicalEntity`、`CanonicalEntityAlias` 与 `CanonicalEntityMember` 事实层。归并器 `builtin-surface-entity-normalizer@1.0.0` 仅执行确定性且可解释的 Unicode/空白/标点表面归一化、`23:47` 与“晚上十一点四十七分”这类时钟时间归一化，以及“许阿姨”与“许姨”这类明确称谓规则。
 
 原始 `ExtractedEntity`、mention、章节和段落证据不会被改写；每个规范实体保留成员、原始别名、出现次数、归并方法和置信度。无法由上述规则确定的语义别名会保持为不同候选，系统不会将“白裙女人”自动断言为“小满的妈妈”。结果也不会直接写入 `Character`、`Location` 或 `Prop` 主数据：P3-10 处理关系/事件/时间线，P3-11 才生成可人工维护的业务主数据初稿。
+
+## P3-10 叙事结构候选
+
+P3-10 仅在一个不可变 `SourceDocumentVersion` 内，读取已成功的 P3-09 归并结果，创建 `NarrativeStructure`、`NarrativeRelationshipCandidate`、`NarrativeRelationshipEvidence`、`NarrativeEventCandidate` 与 `NarrativeEventParticipant`。分析器为 `builtin-chapter-cooccurrence-narrative-analyzer@1.0.0`，任务类型为 `SOURCE_VERSION_NARRATIVE_STRUCTURE`，以稳定幂等键和既有 `Task`/`TaskAttempt` 状态机支持重复提交和显式重试。
+
+当前关系类型唯一为 `CO_OCCURRENCE`，只表示两个人物候选同章出现，并通过章节证据和出现次数回溯；它**不**代表亲属、恋爱、敌对、协作或任何已确认的人物关系。每个 `EVENT` 来源成员形成一个关键事件候选；同章 `TIME`、`LOCATION` 仅作为锚点，同章人物仅以 `MENTIONED_IN_EVENT_CHAPTER` 参与者记录。时间线按原文 `chapterOrdinal`、来源 `sourceOrdinal` 和标题稳定排序，不表述事件因果、真实时间先后或人工/LLM 判断。
+
+P3-10 事务性重建自身候选，不改写 P3-08 原始实体/mention、P3-09 规范实体/别名、对象存储原文或 `Character`、`Location`、`Prop` 主数据。P3-11 才将这些可追溯候选转为可人工维护的世界观与业务主数据初稿；P3-12 将提供结构化校验和人工修正入口。

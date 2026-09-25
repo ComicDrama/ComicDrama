@@ -13,6 +13,14 @@ import {
   CrossChapterEntityResolutionTaskController,
 } from './cross-chapter-entity-resolution.controller';
 import { CrossChapterEntityResolutionService } from './cross-chapter-entity-resolution.service';
+import {
+  NarrativeStructureController,
+  NarrativeStructureTaskController,
+} from './narrative-structure.controller';
+import {
+  NarrativeStructureBuilder,
+  NarrativeStructureService,
+} from './narrative-structure.service';
 import { ObjectStorageModule } from './object-storage.module';
 import { SourceDocumentParseService } from './source-document-parse.service';
 import { SourceDocumentReadController } from './source-document-read.controller';
@@ -34,6 +42,8 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     ChapterEntityExtractionTaskController,
     CrossChapterEntityResolutionController,
     CrossChapterEntityResolutionTaskController,
+    NarrativeStructureController,
+    NarrativeStructureTaskController,
   ],
   providers: [
     SourceDocumentParseService,
@@ -45,6 +55,8 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     BuiltinEntityNormalizer,
     ChapterEntityExtractionService,
     CrossChapterEntityResolutionService,
+    NarrativeStructureBuilder,
+    NarrativeStructureService,
     SourceDocumentUploadService,
   ],
   exports: [
@@ -57,6 +69,8 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     BuiltinEntityNormalizer,
     ChapterEntityExtractionService,
     CrossChapterEntityResolutionService,
+    NarrativeStructureBuilder,
+    NarrativeStructureService,
     SourceDocumentUploadService,
   ],
 })

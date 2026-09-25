@@ -207,3 +207,11 @@ P3-08 只保留章节内候选和可追溯证据，绝不覆盖原文/来源树�
 `20260925000200_cross_chapter_entity_resolution` 新增 `SourceVersionEntityResolution`、`CanonicalEntity`、`CanonicalEntityAlias` 和 `CanonicalEntityMember`。归并结果严格限于一个 `SourceDocumentVersion` 与一个 normalizer 名称/版本；同一版本、normalizer 名称和版本只能产生一条 resolution。
 
 `CanonicalEntity` 以实体类型和确定性归一化名称唯一，保存显示用规范名、聚合置信度、排序和归并元数据；`CanonicalEntityAlias` 保留每种原始别名与出现次数；`CanonicalEntityMember` 以唯一 `ExtractedEntity` 外键追溯每个原始章节候选。删除 resolution 会级联删除其规范实体、别名和成员；原始章节提取结果不被更新。该层是 P3 内容理解候选事实，不等同于 P2 的 `Character`、`Location`、`Prop` 主数据。
+
+## P3-10 叙事结构候选事实源
+
+`20260925000300_narrative_structure` 建立 `NarrativeStructure`、`NarrativeRelationshipCandidate`、`NarrativeRelationshipEvidence`、`NarrativeEventCandidate` 与 `NarrativeEventParticipant`，作用域固定为一份不可变 `SourceDocumentVersion` 和一版分析器。`NarrativeStructure` 同时固定引用其成功的 P3-09 `SourceVersionEntityResolution`；同一版本、分析器名称和版本只能有一条结构结果，重跑会在事务内替换该结构结果拥有的关系、证据、事件和参与者。
+
+`NarrativeRelationshipCandidate` 的两端均指向 P3-09 `CanonicalEntity`，当前 `NarrativeRelationshipKind` 仅支持 `CO_OCCURRENCE`；每个关系以 `NarrativeRelationshipEvidence` 保存同章 `SourceSegment` 证据和出现次数。该类型只是共同出现候选，不得解释为亲属、恋爱、敌对、协作或其他语义关系。`NarrativeEventCandidate` 以一个 `CanonicalEntityMember` 的 `EVENT` 候选为来源，保存章节、来源顺序、稳定 `timelineOrder` 和包含时间/地点规范实体 ID 的元数据；其 `NarrativeEventParticipant` 仅保存同章人物，角色固定为 `MENTIONED_IN_EVENT_CHAPTER`，不表示施事、受事或主角。
+
+关系、事件和参与者均依附于 P3-10 结构结果，删除/重建结构时级联清理；P3-08 `ExtractedEntity`/mention、P3-09 规范实体/别名和来源段落不被更新。事件的 `sourceMemberId` 只在 `[structureId, sourceMemberId]` 内唯一，以允许未来分析器版本保留独立输出；时间线按原文 `chapterOrdinal`、`sourceOrdinal` 与标题排序，不能作为因果或真实时间结论。

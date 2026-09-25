@@ -8,6 +8,9 @@ const {
 const {
   BuiltinEntityNormalizer,
 } = require('../dist/source-documents/builtin-entity-normalizer.service.js');
+const {
+  NarrativeStructureBuilder,
+} = require('../dist/source-documents/narrative-structure.service.js');
 
 const sample = fs.readFileSync(path.resolve(__dirname, '../../V1测试样本_雨夜的灯.md'), 'utf8');
 const firstChapterStart = sample.indexOf('## 第一章：最后一单');
@@ -54,6 +57,80 @@ assert.equal(
   normalizer.normalize('CHARACTER', '许阿姨').normalizedName,
   normalizer.normalize('CHARACTER', '许姨').normalizedName,
 );
+const narrativeBuilder = new NarrativeStructureBuilder();
+const narrative = narrativeBuilder.build([
+  {
+    id: 'character-lin',
+    type: 'CHARACTER',
+    canonicalName: '林砚',
+    confidence: 0.9,
+    members: [
+      {
+        id: 'member-lin',
+        chapterSegmentId: 'chapter-1',
+        chapterOrdinal: 1,
+        sourceOrdinal: 1,
+        confidence: 0.9,
+      },
+    ],
+  },
+  {
+    id: 'character-xiaoman',
+    type: 'CHARACTER',
+    canonicalName: '小满',
+    confidence: 0.9,
+    members: [
+      {
+        id: 'member-xiaoman',
+        chapterSegmentId: 'chapter-1',
+        chapterOrdinal: 1,
+        sourceOrdinal: 2,
+        confidence: 0.9,
+      },
+    ],
+  },
+  {
+    id: 'time-2347',
+    type: 'TIME',
+    canonicalName: '23:47',
+    confidence: 0.9,
+    members: [
+      {
+        id: 'member-time',
+        chapterSegmentId: 'chapter-1',
+        chapterOrdinal: 1,
+        sourceOrdinal: 3,
+        confidence: 0.9,
+      },
+    ],
+  },
+  {
+    id: 'event-last-order',
+    type: 'EVENT',
+    canonicalName: '最后一单',
+    confidence: 0.8,
+    members: [
+      {
+        id: 'member-event',
+        chapterSegmentId: 'chapter-1',
+        chapterOrdinal: 1,
+        sourceOrdinal: 4,
+        confidence: 0.8,
+      },
+    ],
+  },
+]);
+assert.equal(narrative.relationships.length, 1);
+assert.equal(narrative.relationships[0].occurrenceCount, 1);
+assert.deepEqual(narrative.relationships[0].chapterSegmentIds, ['chapter-1']);
+assert.equal(narrative.events.length, 1);
+assert.equal(narrative.events[0].timelineOrder, 1);
+assert.deepEqual(narrative.events[0].temporalAnchorIds, ['time-2347']);
+assert.deepEqual([...narrative.events[0].participantIds].sort(), [
+  'character-lin',
+  'character-xiaoman',
+]);
+
 console.log(
-  `chapter entity extractor and normalizer smoke test passed (${entities.length} candidates)`,
+  `chapter entity, normalization, and narrative structure smoke test passed (${entities.length} candidates)`,
 );

@@ -409,7 +409,12 @@
   - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、归一化规则 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
   - 验证结果：新增原文版本级归并结果、规范实体、别名与原始候选成员事实源；`CROSS_CHAPTER_ENTITY_RESOLUTION` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry。确定性归并器可将 `23:47` 与“晚上十一点四十七分”归一为 `23:47`，并可将“许阿姨”与“许姨”归为同一表面称谓候选，同时保留原始别名、章节来源和归并方法。
   - 备注：仅在同一不可变 `SourceDocumentVersion` 内对 P3-08 成功结果归并；不是 LLM、人工确认或语义推断。不能确定的别名保持分离，不会改写 `ExtractedEntity`/mention 或直接写入 Character/Location/Prop 主数据；关系、事件因果和全局时间线留给 P3-10。
-- [ ] `P3-10` 实现人物关系、时间线和关键事件的结构化结果。
+- [x] `P3-10` 实现人物关系、时间线和关键事件的结构化结果。
+  - 完成日期：2026-09-25。
+  - 实现位置：`api/prisma/migrations/20260925000300_narrative_structure/migration.sql`、`api/src/source-documents/narrative-structure.service.ts`、`api/src/source-documents/narrative-structure.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/chapter-entity-extractor.test.js`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
+  - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、叙事结构规则 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
+  - 验证结果：新增原文版本级叙事结构、同章共现关系和章节证据、事件候选与同章时间/地点锚点和人物参与者；`SOURCE_VERSION_NARRATIVE_STRUCTURE` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry。规则 smoke test 可稳定产出林砚/小满的 `CO_OCCURRENCE`、`23:47` 时间锚点及“最后一单”事件候选。
+  - 备注：当前为 `builtin-chapter-cooccurrence-narrative-analyzer@1.0.0` 确定性候选分析，不是 LLM、人工确认或语义/因果推断；`CO_OCCURRENCE` 仅表示同章出现，不能表述亲属、敌对、恋爱或协作关系。时间线只按章节和来源顺序组织；不会改写 P3-08/P3-09 事实源或直接写入 Character/Location/Prop 主数据，人工维护初稿留给 P3-11。
 - [ ] `P3-11` 生成世界观、角色、场景、道具初稿数据，并保留来源引用。
 - [ ] `P3-12` 实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
 - [ ] `P3-13` 实现“原文 → 提取结果”的差异/来源查看。
@@ -671,4 +676,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-09`。下一步实施 `P3-10`：实现人物关系、时间线和关键事件的结构化结果。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-10`。下一步实施 `P3-11`：生成世界观、角色、场景、道具初稿数据，并保留来源引用。

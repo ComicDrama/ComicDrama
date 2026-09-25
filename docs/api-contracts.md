@@ -294,3 +294,19 @@ x-user-id: <active-user-uuid>
 创建和重试需要项目 `EDIT` 权限并写入 `GENERATE` 类型的 `AuditLog`；读取归并结果或任务需要 `VIEW` 权限。服务端校验项目、文档和版本的归属及 `READY` 状态，并且要求该版本至少具有一份成功的分章实体提取结果。任务类型为 `CROSS_CHAPTER_ENTITY_RESOLUTION`，稳定幂等键为 `CROSS_CHAPTER_ENTITY_RESOLUTION:<versionId>:<normalizerVersion>`；重复提交复用既有 `Task`，失败时按既有 `TaskAttempt`、最大次数和 retryable 标志显式重试。
 
 当前归并器为 `builtin-surface-entity-normalizer@1.0.0`。它只应用可解释的确定性规则：Unicode NFKC、大小写/空白/标点表面归一化，时钟时间（例如 `23:47` 与“晚上十一点四十七分”）归一化，以及明确角色称谓（例如“许阿姨”与“许姨”）归一化。不能确定的语义别名不会自动合并。`GET .../entity-resolution` 返回规范实体、原始别名、出现次数、成员候选、章节来源、归并方法与置信度。
+
+## 叙事结构候选（P3-10）
+
+P3-10 在同一个不可变 `SourceDocumentVersion` 中，仅使用已成功的 P3-09 `SourceVersionEntityResolution`（固定为 `builtin-surface-entity-normalizer@1.0.0` 输出）生成可追溯的关系、事件和时间线候选；不会改写 P3-08/P3-09 结果、原文或来源树，也不会写入 `Character`、`Location`、`Prop` 主数据。
+
+```text
+POST /api/projects/:projectId/source-documents/:documentId/versions/:versionId/narrative-structure
+GET  /api/projects/:projectId/source-documents/:documentId/versions/:versionId/narrative-structure
+GET  /api/projects/:projectId/narrative-structure-tasks/:taskId
+POST /api/projects/:projectId/narrative-structure-tasks/:taskId/retry
+x-user-id: <active-user-uuid>
+```
+
+触发和重试需要项目 `EDIT` 权限并写入 `GENERATE` 类型 `AuditLog`；读取结构结果或任务需要 `VIEW` 权限。服务端验证项目、文档、版本归属和 `READY` 状态，并要求相同原文版本已有成功的 P3-09 归并结果。任务类型为 `SOURCE_VERSION_NARRATIVE_STRUCTURE`，稳定幂等键为 `SOURCE_VERSION_NARRATIVE_STRUCTURE:<versionId>:<analyzerVersion>`；重复提交复用任务，失败任务遵循既有 `TaskAttempt`、最大次数和 retryable 标志显式重试。
+
+当前分析器为 `builtin-chapter-cooccurrence-narrative-analyzer@1.0.0`。`GET .../narrative-structure` 返回分析状态、关系、章节证据、出现次数及按 `chapterOrdinal`、`sourceOrdinal`、标题稳定排序的事件时间线；事件同时附带同章时间/地点锚点和 `MENTIONED_IN_EVENT_CHAPTER` 人物参与者。当前唯一关系类型 `CO_OCCURRENCE` 仅代表两个人物候选在同一章节中出现，**不**是亲属、恋爱、敌对、协作等语义关系；事件锚点、参与者和排序也不代表因果、真实时序、LLM 或人工确认。
