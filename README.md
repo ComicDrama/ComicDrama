@@ -188,3 +188,7 @@ x-user-id: <active-user-uuid>
 ```
 
 批量复核需要项目 `EDIT` 权限并记录 `REVIEW` 审计日志；人工修正支持更新 `name` 或 `content`，服务端重新执行 Schema 校验，写入错误路径/消息并记录 `reviewedAt`、`reviewedBy`，修正请求写入 `UPDATE` 审计日志。来源引用仍只读，P3-08～P3-11 事实源和正式主数据不被覆盖。
+
+### P3-13 来源查看
+
+已提供只读接口，将结构化初稿实体追溯到原文引用、来源段落和上下文，并返回 `MATCH`、`MISMATCH`、`OUT_OF_RANGE` 引用一致性状态。来源坐标基于原文版本全文的 UTF-16 code unit，支持 `contextBefore`/`contextAfter`（默认 160，最大 2000）。

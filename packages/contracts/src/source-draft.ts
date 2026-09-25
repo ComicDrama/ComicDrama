@@ -1,4 +1,4 @@
-export type SourceDraftKind = 'WORLD' | 'CHARACTER' | 'LOCATION' | 'PROP';
+﻿export type SourceDraftKind = 'WORLD' | 'CHARACTER' | 'LOCATION' | 'PROP';
 export type SourceDraftReviewStatus = 'PENDING' | 'NEEDS_REVIEW' | 'VALIDATED' | 'CORRECTED';
 
 export interface SourceDraftValidationIssue {

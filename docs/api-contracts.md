@@ -336,3 +336,23 @@ x-user-id: <active-user-uuid>
 P3-12 使用版本化 JSON Schema `1.0.0` 校验四类初稿的名称、必填字段、字段类型和未知字段。`GET source-drafts` 返回 `schema.version`、按 `kind` 的数量以及 `pendingCount`、`needsReviewCount`、`validatedCount`、`correctedCount`。每个 `SourceDraftEntity` 返回 `validationStatus`、`validationErrors`、`reviewedAt` 和 `reviewedBy`。
 
 批量校验需要项目 `EDIT` 权限并写入 `REVIEW` 审计日志；单项修正需要项目 `EDIT` 权限，Body 可包含 `name`、`content` 至少一个字段。服务端保存修正后重新校验：有错误标记为 `NEEDS_REVIEW`，通过校验标记为 `CORRECTED`，并记录审核人和时间；修正请求写入 `UPDATE` 审计日志。引用和 P3-08～P3-11 原始事实均保持只读。
+
+## P3-13 初稿来源查看
+
+读取单个结构化初稿实体对应的原文引用、段落定位和上下文：
+
+```text
+GET /api/projects/:projectId/source-documents/:documentId/versions/:versionId/source-drafts/:draftEntityId/sources
+```
+
+权限要求为项目 `VIEW`。可选查询参数 `contextBefore`、`contextAfter` 均为非负整数，默认 `160`，最大 `2000`；偏移量使用原文版本 `textContent` 的 UTF-16 code unit 坐标。
+
+返回的每条来源包含：
+
+- `quote`：生成时保存的引用；
+- `actualQuote`：按版本全文 offset 从当前原文切出的文本；
+- `quoteMatch`：`MATCH`、`MISMATCH` 或 `OUT_OF_RANGE`；
+- `sourceSegment`：来源段落及其全文坐标；
+- `context`：裁剪后的原文上下文和坐标。
+
+`MISMATCH` 和 `OUT_OF_RANGE` 是可审阅的来源异常，接口仍返回 HTTP 200，不会静默修改原始引用。

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+﻿import { Module } from '@nestjs/common';
 import { AccessControlModule } from '../access/access-control.module';
 import { VersioningModule } from '../versioning/versioning.module';
 import { BuiltinChapterEntityExtractor } from './builtin-chapter-entity-extractor.service';
@@ -23,7 +23,9 @@ import {
 } from './narrative-structure.service';
 import { ObjectStorageModule } from './object-storage.module';
 import { SourceDraftGenerationController } from './source-draft-generation.controller';
+import { SourceDraftSourceController } from './source-draft-source.controller';
 import { SourceDraftGenerationService } from './source-draft-generation.service';
+import { SourceDraftSourceService } from './source-draft-source.service';
 import { SourceDocumentParseService } from './source-document-parse.service';
 import { SourceDocumentReadController } from './source-document-read.controller';
 import { SourceDocumentReadService } from './source-document-read.service';
@@ -47,6 +49,7 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     NarrativeStructureController,
     NarrativeStructureTaskController,
     SourceDraftGenerationController,
+    SourceDraftSourceController,
   ],
   providers: [
     SourceDocumentParseService,
@@ -61,6 +64,7 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     NarrativeStructureBuilder,
     NarrativeStructureService,
     SourceDraftGenerationService,
+    SourceDraftSourceService,
     SourceDocumentUploadService,
   ],
   exports: [
@@ -76,6 +80,7 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     NarrativeStructureBuilder,
     NarrativeStructureService,
     SourceDraftGenerationService,
+    SourceDraftSourceService,
     SourceDocumentUploadService,
   ],
 })
