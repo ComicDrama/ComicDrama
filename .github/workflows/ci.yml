@@ -1,4 +1,4 @@
-name: ci
+﻿name: ci
 
 on:
   push:
@@ -21,6 +21,8 @@ jobs:
         env:
           DATABASE_URL: postgresql://comicdrama:change-me@localhost:5432/comicdrama?schema=public
       - run: npm run prisma:generate --workspace api
+        env:
+          DATABASE_URL: postgresql://comicdrama:change-me@localhost:5432/comicdrama?schema=public
       - run: npm run format:check
       - run: npm run lint
       - run: npm run test
