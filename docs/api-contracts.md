@@ -310,3 +310,17 @@ x-user-id: <active-user-uuid>
 触发和重试需要项目 `EDIT` 权限并写入 `GENERATE` 类型 `AuditLog`；读取结构结果或任务需要 `VIEW` 权限。服务端验证项目、文档、版本归属和 `READY` 状态，并要求相同原文版本已有成功的 P3-09 归并结果。任务类型为 `SOURCE_VERSION_NARRATIVE_STRUCTURE`，稳定幂等键为 `SOURCE_VERSION_NARRATIVE_STRUCTURE:<versionId>:<analyzerVersion>`；重复提交复用任务，失败任务遵循既有 `TaskAttempt`、最大次数和 retryable 标志显式重试。
 
 当前分析器为 `builtin-chapter-cooccurrence-narrative-analyzer@1.0.0`。`GET .../narrative-structure` 返回分析状态、关系、章节证据、出现次数及按 `chapterOrdinal`、`sourceOrdinal`、标题稳定排序的事件时间线；事件同时附带同章时间/地点锚点和 `MENTIONED_IN_EVENT_CHAPTER` 人物参与者。当前唯一关系类型 `CO_OCCURRENCE` 仅代表两个人物候选在同一章节中出现，**不**是亲属、恋爱、敌对、协作等语义关系；事件锚点、参与者和排序也不代表因果、真实时序、LLM 或人工确认。
+
+## 世界观与业务主数据初稿（P3-11）
+
+```text
+POST /api/projects/:projectId/source-documents/:documentId/versions/:versionId/source-drafts
+GET  /api/projects/:projectId/source-documents/:documentId/versions/:versionId/source-drafts
+x-user-id: <active-user-uuid>
+```
+
+创建需要项目 `EDIT` 权限并写入 `GENERATE` 类型的 `AuditLog`；读取需要 `VIEW` 权限。服务端验证项目、文档、版本归属、原文版本 `READY`，且该版本的 `builtin-surface-entity-normalizer@1.0.0` 归并结果已成功。
+
+生成器 `builtin-cited-source-draft-generator@1.0.0` 按版本与生成器版本幂等生成 `WORLD`、`CHARACTER`、`LOCATION`、`PROP` 初稿，保存于 `SourceDraftGeneration`、`SourceDraftEntity` 和 `SourceDraftCitation`。引用指向原文 `SourceSegment`、P3-09 规范成员及 mention 的精确文本、UTF-16 半开偏移、行号和置信度。
+
+生成是可重复的确定性候选，不是 LLM 结论或人工定稿；无法从来源证明的内容不推断，字段保持空值并列入 `openQuestions`。世界观初稿仅索引来源中已有的组织、时间、事件候选；不修改 P3-08～P3-10 事实源，不 upsert 正式 `Character`、`Location`、`Prop`。

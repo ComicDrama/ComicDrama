@@ -13,7 +13,7 @@
     "prisma:migrate:status": "prisma migrate status --schema prisma/schema.prisma",
     "prisma:seed": "prisma db seed --schema prisma/schema.prisma",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
-    "test": "npm run build && node scripts/chapter-entity-extractor.test.js"
+    "test": "npm run build && node scripts/chapter-entity-extractor.test.js && node scripts/source-draft-generation.test.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.901.0",

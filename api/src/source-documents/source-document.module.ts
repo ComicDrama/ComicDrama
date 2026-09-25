@@ -22,6 +22,8 @@ import {
   NarrativeStructureService,
 } from './narrative-structure.service';
 import { ObjectStorageModule } from './object-storage.module';
+import { SourceDraftGenerationController } from './source-draft-generation.controller';
+import { SourceDraftGenerationService } from './source-draft-generation.service';
 import { SourceDocumentParseService } from './source-document-parse.service';
 import { SourceDocumentReadController } from './source-document-read.controller';
 import { SourceDocumentReadService } from './source-document-read.service';
@@ -44,6 +46,7 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     CrossChapterEntityResolutionTaskController,
     NarrativeStructureController,
     NarrativeStructureTaskController,
+    SourceDraftGenerationController,
   ],
   providers: [
     SourceDocumentParseService,
@@ -57,6 +60,7 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     CrossChapterEntityResolutionService,
     NarrativeStructureBuilder,
     NarrativeStructureService,
+    SourceDraftGenerationService,
     SourceDocumentUploadService,
   ],
   exports: [
@@ -71,6 +75,7 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     CrossChapterEntityResolutionService,
     NarrativeStructureBuilder,
     NarrativeStructureService,
+    SourceDraftGenerationService,
     SourceDocumentUploadService,
   ],
 })

@@ -126,6 +126,20 @@ enum SourceVersionNarrativeStructureStatus {
   FAILED
 }
 
+enum SourceDraftGenerationStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum SourceDraftKind {
+  WORLD
+  CHARACTER
+  LOCATION
+  PROP
+}
+
 enum NarrativeRelationshipKind {
   CO_OCCURRENCE
 }
@@ -527,6 +541,7 @@ model Project {
   chapterEntityExtractions       ChapterEntityExtraction[]
   sourceVersionEntityResolutions SourceVersionEntityResolution[]
   narrativeStructures            NarrativeStructure[]
+  sourceDraftGenerations         SourceDraftGeneration[]
   scripts                        Script[]
   shots                          Shot[]
   timelines                      Timeline[]
@@ -755,6 +770,7 @@ model SourceDocument {
   chapterEntityExtractions       ChapterEntityExtraction[]
   sourceVersionEntityResolutions SourceVersionEntityResolution[]
   narrativeStructures            NarrativeStructure[]
+  sourceDraftGenerations         SourceDraftGeneration[]
 
   @@index([projectId, status])
   @@index([projectId, archivedAt])
@@ -789,6 +805,7 @@ model SourceDocumentVersion {
   chapterEntityExtractions       ChapterEntityExtraction[]
   sourceVersionEntityResolutions SourceVersionEntityResolution[]
   narrativeStructures            NarrativeStructure[]
+  sourceDraftGenerations         SourceDraftGeneration[]
 
   @@unique([documentId, version])
   @@index([documentId, status])
@@ -823,6 +840,7 @@ model SourceSegment {
   extractedEntityMentions       ExtractedEntityMention[]
   narrativeEventCandidates      NarrativeEventCandidate[]
   narrativeRelationshipEvidence NarrativeRelationshipEvidence[]
+  sourceDraftCitations          SourceDraftCitation[]
 
   @@unique([versionId, ordinal])
   @@index([versionId, type])
@@ -914,11 +932,12 @@ model SourceVersionEntityResolution {
   createdAt         DateTime                            @default(now())
   updatedAt         DateTime                            @updatedAt
 
-  project             Project               @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceDocument      SourceDocument        @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  sourceVersion       SourceDocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  canonicalEntities   CanonicalEntity[]
-  narrativeStructures NarrativeStructure[]
+  project                Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument         SourceDocument          @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceVersion          SourceDocumentVersion   @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  canonicalEntities      CanonicalEntity[]
+  narrativeStructures    NarrativeStructure[]
+  sourceDraftGenerations SourceDraftGeneration[]
 
   @@unique([sourceVersionId, normalizerName, normalizerVersion])
   @@index([projectId, status])
@@ -943,6 +962,7 @@ model CanonicalEntity {
   members                    CanonicalEntityMember[]
   narrativeEventCandidates   NarrativeEventCandidate[]
   narrativeEventParticipants NarrativeEventParticipant[]
+  sourceDraftEntities        SourceDraftEntity[]
   relationshipSources        NarrativeRelationshipCandidate[] @relation("NarrativeRelationshipSource")
   relationshipTargets        NarrativeRelationshipCandidate[] @relation("NarrativeRelationshipTarget")
 
@@ -980,6 +1000,7 @@ model CanonicalEntityMember {
   canonicalEntity          CanonicalEntity           @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   extractedEntity          ExtractedEntity           @relation(fields: [extractedEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   narrativeEventCandidates NarrativeEventCandidate[]
+  sourceDraftCitations     SourceDraftCitation[]
 
   @@index([canonicalEntityId])
   @@map("canonical_entity_members")
@@ -1010,6 +1031,78 @@ model NarrativeStructure {
   @@index([projectId, status])
   @@index([sourceDocumentId])
   @@map("narrative_structures")
+}
+
+model SourceDraftGeneration {
+  id                 String                      @id @default(uuid()) @db.Uuid
+  projectId          String                      @db.Uuid
+  sourceDocumentId   String                      @db.Uuid
+  sourceVersionId    String                      @db.Uuid
+  entityResolutionId String                      @db.Uuid
+  generatorName      String                      @db.VarChar(120)
+  generatorVersion   String                      @db.VarChar(50)
+  status             SourceDraftGenerationStatus @default(PENDING)
+  errorMessage       String?
+  generatedAt        DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+
+  project          Project                       @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument   SourceDocument                @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceVersion    SourceDocumentVersion         @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  entityResolution SourceVersionEntityResolution @relation(fields: [entityResolutionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  items            SourceDraftEntity[]
+
+  @@unique([sourceVersionId, generatorName, generatorVersion])
+  @@index([projectId, status])
+  @@index([sourceDocumentId])
+  @@map("source_draft_generations")
+}
+
+model SourceDraftEntity {
+  id                String          @id @default(uuid()) @db.Uuid
+  generationId      String          @db.Uuid
+  canonicalEntityId String?         @db.Uuid
+  kind              SourceDraftKind
+  name              String          @db.VarChar(300)
+  ordinal           Int
+  content           Json
+  confidence        Float?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  generation      SourceDraftGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  canonicalEntity CanonicalEntity?      @relation(fields: [canonicalEntityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  citations       SourceDraftCitation[]
+
+  @@unique([generationId, kind, ordinal])
+  @@index([generationId, kind])
+  @@index([canonicalEntityId])
+  @@map("source_draft_entities")
+}
+
+model SourceDraftCitation {
+  id                String   @id @default(uuid()) @db.Uuid
+  draftEntityId     String   @db.Uuid
+  sourceSegmentId   String   @db.Uuid
+  canonicalMemberId String?  @db.Uuid
+  quote             String   @db.Text
+  startOffset       Int
+  endOffset         Int
+  startLine         Int?
+  endLine           Int?
+  evidenceType      String   @default("DIRECT_MENTION") @db.VarChar(80)
+  confidence        Float?
+  createdAt         DateTime @default(now())
+
+  draftEntity     SourceDraftEntity      @relation(fields: [draftEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceSegment   SourceSegment          @relation(fields: [sourceSegmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  canonicalMember CanonicalEntityMember? @relation(fields: [canonicalMemberId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([draftEntityId, sourceSegmentId, startOffset, endOffset])
+  @@index([sourceSegmentId])
+  @@index([canonicalMemberId])
+  @@map("source_draft_citations")
 }
 
 model NarrativeRelationshipCandidate {

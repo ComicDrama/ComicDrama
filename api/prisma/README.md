@@ -215,3 +215,9 @@ P3-08 只保留章节内候选和可追溯证据，绝不覆盖原文/来源树�
 `NarrativeRelationshipCandidate` 的两端均指向 P3-09 `CanonicalEntity`，当前 `NarrativeRelationshipKind` 仅支持 `CO_OCCURRENCE`；每个关系以 `NarrativeRelationshipEvidence` 保存同章 `SourceSegment` 证据和出现次数。该类型只是共同出现候选，不得解释为亲属、恋爱、敌对、协作或其他语义关系。`NarrativeEventCandidate` 以一个 `CanonicalEntityMember` 的 `EVENT` 候选为来源，保存章节、来源顺序、稳定 `timelineOrder` 和包含时间/地点规范实体 ID 的元数据；其 `NarrativeEventParticipant` 仅保存同章人物，角色固定为 `MENTIONED_IN_EVENT_CHAPTER`，不表示施事、受事或主角。
 
 关系、事件和参与者均依附于 P3-10 结构结果，删除/重建结构时级联清理；P3-08 `ExtractedEntity`/mention、P3-09 规范实体/别名和来源段落不被更新。事件的 `sourceMemberId` 只在 `[structureId, sourceMemberId]` 内唯一，以允许未来分析器版本保留独立输出；时间线按原文 `chapterOrdinal`、`sourceOrdinal` 与标题排序，不能作为因果或真实时间结论。
+
+## P3-11 来源可追溯初稿
+
+`SourceDraftGeneration` 在项目、文档和不可变来源版本范围内记录生成器名称/版本、P3-09 输入结果、状态和生成时间；同一个来源版本与生成器版本唯一。`SourceDraftEntity` 存放 `WORLD`、`CHARACTER`、`LOCATION`、`PROP` 四类独立初稿和 JSON 内容；它不是正式角色/地点/道具主数据。`SourceDraftCitation` 为每条可证明内容保留来源段落、P3-09 成员、精确 mention 引文、UTF-16 半开偏移、行号与置信度。
+
+P3-11 生成器基于成功 P3-09 结果确定性构造草稿，并在事务中替换该生成器版本的输出；原始来源、P3-08 mention、P3-09 归并和 P3-10 叙事结构均不变。无来源证据的设定字段为空并进入待确认问题，不写入正式 `Character`、`Location`、`Prop`。P3-12 将建立 Schema 校验与人工修正流程。

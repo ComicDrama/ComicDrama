@@ -415,7 +415,12 @@
   - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、叙事结构规则 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
   - 验证结果：新增原文版本级叙事结构、同章共现关系和章节证据、事件候选与同章时间/地点锚点和人物参与者；`SOURCE_VERSION_NARRATIVE_STRUCTURE` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry。规则 smoke test 可稳定产出林砚/小满的 `CO_OCCURRENCE`、`23:47` 时间锚点及“最后一单”事件候选。
   - 备注：当前为 `builtin-chapter-cooccurrence-narrative-analyzer@1.0.0` 确定性候选分析，不是 LLM、人工确认或语义/因果推断；`CO_OCCURRENCE` 仅表示同章出现，不能表述亲属、敌对、恋爱或协作关系。时间线只按章节和来源顺序组织；不会改写 P3-08/P3-09 事实源或直接写入 Character/Location/Prop 主数据，人工维护初稿留给 P3-11。
-- [ ] `P3-11` 生成世界观、角色、场景、道具初稿数据，并保留来源引用。
+- [x] `P3-11` 生成世界观、角色、场景、道具初稿数据，并保留来源引用。
+  - 完成日期：2026-09-25。
+  - 实现位置：`api/prisma/migrations/20260925000400_source_draft_generation/migration.sql`、`api/src/source-documents/source-draft-generation.service.ts`、`api/src/source-documents/source-draft-generation.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/source-draft-generation.test.js`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
+  - 验证方式：Prisma format/validate/generate、API build/test/lint、全仓库格式检查、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
+  - 验证结果：P3-09 成功结果可稳定生成世界观容器及角色、地点/场景、道具候选；候选字段保留 P3-08 mention 的来源段落、精确文本、UTF-16 偏移、行号和置信度；重复请求按版本/生成器版本复用批次并事务性重建。
+  - 备注：当前使用 `builtin-cited-source-draft-generator@1.0.0` 确定性生成，不是 LLM 或人工定稿；无证据的字段为空并进入 `openQuestions`。P3-11 不覆盖 P3-08～P3-10，也不写入正式 `Character`、`Location`、`Prop` 主数据。
 - [ ] `P3-12` 实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
 - [ ] `P3-13` 实现“原文 → 提取结果”的差异/来源查看。
 - [ ] `P3-14` 为 LLM 调用保存模型、Prompt 模板版本、输入范围、输出、耗时、Token 和费用。
@@ -676,4 +681,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-10`。下一步实施 `P3-11`：生成世界观、角色、场景、道具初稿数据，并保留来源引用。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-11`。下一步实施 `P3-12`：实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
