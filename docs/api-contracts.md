@@ -1,4 +1,4 @@
-﻿# API 与跨服务契约
+# API 与跨服务契约
 
 ## API 响应
 
@@ -278,3 +278,19 @@ x-user-id: <active-user-uuid>
 结果保存在 `ChapterEntityExtraction`、`ExtractedEntity` 和 `ExtractedEntityMention`：每个 mention 保存来源 `SourceSegment`、原文证据、清洗后正文中的 UTF-16 半开偏移 `[startOffset, endOffset)`、行号、规则证据和置信度。重跑相同提取器版本时会事务性重建其候选实体和 mentions，不修改对象存储原文、`SourceDocumentVersion.textContent`、来源树，也不会写入 `Character` / `Location` / `Prop` 主数据。
 
 `GET .../entity-extractions` 返回章节范围、提取器名称/版本、状态、按类型统计、章节内实体及每个实体的来源证据。若尚未触发该章节的提取，返回 `404`；客户端应先调用 POST 并根据任务状态轮询。
+
+## 跨章节实体归并与别名归一化（P3-09）
+
+P3-09 在同一不可变 `SourceDocumentVersion` 范围内读取所有成功的 `CHAPTER_ENTITY_EXTRACTION` 结果，建立独立的候选归并层；不会改写 `ExtractedEntity`、`ExtractedEntityMention`、原文或来源树，也不会直接写入 `Character`、`Location`、`Prop` 主数据。
+
+```text
+POST /api/projects/:projectId/source-documents/:documentId/versions/:versionId/entity-resolution
+GET  /api/projects/:projectId/source-documents/:documentId/versions/:versionId/entity-resolution
+GET  /api/projects/:projectId/cross-chapter-entity-resolution-tasks/:taskId
+POST /api/projects/:projectId/cross-chapter-entity-resolution-tasks/:taskId/retry
+x-user-id: <active-user-uuid>
+```
+
+创建和重试需要项目 `EDIT` 权限并写入 `GENERATE` 类型的 `AuditLog`；读取归并结果或任务需要 `VIEW` 权限。服务端校验项目、文档和版本的归属及 `READY` 状态，并且要求该版本至少具有一份成功的分章实体提取结果。任务类型为 `CROSS_CHAPTER_ENTITY_RESOLUTION`，稳定幂等键为 `CROSS_CHAPTER_ENTITY_RESOLUTION:<versionId>:<normalizerVersion>`；重复提交复用既有 `Task`，失败时按既有 `TaskAttempt`、最大次数和 retryable 标志显式重试。
+
+当前归并器为 `builtin-surface-entity-normalizer@1.0.0`。它只应用可解释的确定性规则：Unicode NFKC、大小写/空白/标点表面归一化，时钟时间（例如 `23:47` 与“晚上十一点四十七分”）归一化，以及明确角色称谓（例如“许阿姨”与“许姨”）归一化。不能确定的语义别名不会自动合并。`GET .../entity-resolution` 返回规范实体、原始别名、出现次数、成员候选、章节来源、归并方法与置信度。

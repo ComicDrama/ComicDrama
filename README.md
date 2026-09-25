@@ -1,4 +1,4 @@
-﻿# AI漫剧创作平台
+# AI漫剧创作平台
 
 本仓库按 [`AI漫剧创作平台实施计划.md`](AI漫剧创作平台实施计划.md) 分阶段建设，目标是形成一条可版本化、可审核、可回退、可批量生产的漫剧生产链路：
 
@@ -9,8 +9,8 @@
 - V1 固定测试样本：`V1测试样本_雨夜的灯.md`
 - 架构说明：`AI漫剧平台架构说明书v1.1.md`
 - 实施计划：`AI漫剧创作平台实施计划.md`
-- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-08`
-- 当前阶段：P3 原文导入与内容理解；`P3-01`～`P3-08` 已完成，下一项为 `P3-09`（实现跨章节实体合并和别名归一化）
+- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-09`
+- 当前阶段：P3 原文导入与内容理解；`P3-01`～`P3-09` 已完成，下一项为 `P3-10`（实现人物关系、时间线和关键事件的结构化结果）
 - CI：GitHub Actions 已配置 Node.js 22、Python 3.13、Prisma、Prettier、ESLint、Ruff、Pytest、类型检查和构建检查
 
 ## 环境要求
@@ -144,7 +144,14 @@ P3 原文导入进度：
 - P3-06：统一 Parser 接口、TXT/Markdown 注册和 DOCX/EPUB/PDF/Fountain/Final Draft XML 待实现任务登记（已完成）
 - P3-07：正文清洗、章节/段落来源树与 `SOURCE_DOCUMENT_SEGMENTATION` 可重入任务（已完成）
 - P3-08：按 `CHAPTER` 提取角色、地点、道具、组织、时间与事件候选；保存实体、证据段落、UTF-16 偏移和行号，支持可重入任务与显式重试（已完成）
+- P3-09：在单一不可变 `SourceDocumentVersion` 内合并已成功的分章候选；以可解释的表面形式、时间时钟和明确称谓规则生成规范实体与别名，并保留全部原始候选来源（已完成）
 
-P3-08 当前使用 `builtin-rule-chapter-entity-extractor@1.0.0`，是可重复运行的规则提取器，不等同于 LLM 或人工确认。结果仅是章节内候选事实，不会直接写入 `Character`、`Location`、`Prop` 主数据；跨章节合并/别名归一化留给 P3-09，关系和全局时间线留给 P3-10。
+P3-08 当前使用 `builtin-rule-chapter-entity-extractor@1.0.0`，是可重复运行的规则提取器，不等同于 LLM 或人工确认。结果仅是章节内候选事实，不会直接写入 `Character`、`Location`、`Prop` 主数据；P3-09 已完成跨章节候选归并；关系、事件因果和全局时间线留给 P3-10。
 
 详细字段、迁移约束和后续业务校验见 [`api/prisma/README.md`](api/prisma/README.md)；迁移执行、种子数据与回滚流程见 [`docs/database-migrations.md`](docs/database-migrations.md)。
+
+## P3-09 跨章节实体归并
+
+P3-09 基于同一不可变 `SourceDocumentVersion` 中所有成功的 P3-08 分章结果，创建独立的 `CanonicalEntity`、`CanonicalEntityAlias` 与 `CanonicalEntityMember` 事实层。归并器 `builtin-surface-entity-normalizer@1.0.0` 仅执行确定性且可解释的 Unicode/空白/标点表面归一化、`23:47` 与“晚上十一点四十七分”这类时钟时间归一化，以及“许阿姨”与“许姨”这类明确称谓规则。
+
+原始 `ExtractedEntity`、mention、章节和段落证据不会被改写；每个规范实体保留成员、原始别名、出现次数、归并方法和置信度。无法由上述规则确定的语义别名会保持为不同候选，系统不会将“白裙女人”自动断言为“小满的妈妈”。结果也不会直接写入 `Character`、`Location` 或 `Prop` 主数据：P3-10 处理关系/事件/时间线，P3-11 才生成可人工维护的业务主数据初稿。

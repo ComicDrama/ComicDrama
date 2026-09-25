@@ -2,11 +2,17 @@ import { Module } from '@nestjs/common';
 import { AccessControlModule } from '../access/access-control.module';
 import { VersioningModule } from '../versioning/versioning.module';
 import { BuiltinChapterEntityExtractor } from './builtin-chapter-entity-extractor.service';
+import { BuiltinEntityNormalizer } from './builtin-entity-normalizer.service';
 import {
   ChapterEntityExtractionController,
   ChapterEntityExtractionTaskController,
 } from './chapter-entity-extraction.controller';
 import { ChapterEntityExtractionService } from './chapter-entity-extraction.service';
+import {
+  CrossChapterEntityResolutionController,
+  CrossChapterEntityResolutionTaskController,
+} from './cross-chapter-entity-resolution.controller';
+import { CrossChapterEntityResolutionService } from './cross-chapter-entity-resolution.service';
 import { ObjectStorageModule } from './object-storage.module';
 import { SourceDocumentParseService } from './source-document-parse.service';
 import { SourceDocumentReadController } from './source-document-read.controller';
@@ -26,6 +32,8 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     SourceDocumentSegmentationController,
     ChapterEntityExtractionController,
     ChapterEntityExtractionTaskController,
+    CrossChapterEntityResolutionController,
+    CrossChapterEntityResolutionTaskController,
   ],
   providers: [
     SourceDocumentParseService,
@@ -34,7 +42,9 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     SourceDocumentReadService,
     SourceDocumentSegmentationService,
     BuiltinChapterEntityExtractor,
+    BuiltinEntityNormalizer,
     ChapterEntityExtractionService,
+    CrossChapterEntityResolutionService,
     SourceDocumentUploadService,
   ],
   exports: [
@@ -44,7 +54,9 @@ import { SourceDocumentUploadService } from './source-document-upload.service';
     SourceDocumentReadService,
     SourceDocumentSegmentationService,
     BuiltinChapterEntityExtractor,
+    BuiltinEntityNormalizer,
     ChapterEntityExtractionService,
+    CrossChapterEntityResolutionService,
     SourceDocumentUploadService,
   ],
 })

@@ -112,6 +112,13 @@ enum ExtractedEntityType {
   EVENT
 }
 
+enum SourceVersionEntityResolutionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 enum ScriptStatus {
   DRAFT
   IN_PROGRESS
@@ -499,32 +506,33 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  seasons                  Season[]
-  episodes                 Episode[]
-  sourceDocuments          SourceDocument[]
-  chapterEntityExtractions ChapterEntityExtraction[]
-  scripts                  Script[]
-  shots                    Shot[]
-  timelines                Timeline[]
-  assets                   Asset[]
-  assetCollections         AssetCollection[]
-  characters               Character[]
-  locations                Location[]
-  props                    Prop[]
-  generations              Generation[]
-  workflows                Workflow[]
-  tasks                    Task[]
-  workflowRuns             WorkflowRun[]
-  reviews                  Review[]
-  renderJobs               RenderJob[]
-  exportPresets            ExportPreset[]
-  usageRecords             UsageRecord[]
-  costRecords              CostRecord[]
-  auditLogs                AuditLog[]
-  members                  ProjectMember[]
-  teamGrants               ProjectTeam[]
-  memberRoles              ProjectMemberRole[]
-  teamRoles                ProjectTeamRole[]
+  seasons                        Season[]
+  episodes                       Episode[]
+  sourceDocuments                SourceDocument[]
+  chapterEntityExtractions       ChapterEntityExtraction[]
+  sourceVersionEntityResolutions SourceVersionEntityResolution[]
+  scripts                        Script[]
+  shots                          Shot[]
+  timelines                      Timeline[]
+  assets                         Asset[]
+  assetCollections               AssetCollection[]
+  characters                     Character[]
+  locations                      Location[]
+  props                          Prop[]
+  generations                    Generation[]
+  workflows                      Workflow[]
+  tasks                          Task[]
+  workflowRuns                   WorkflowRun[]
+  reviews                        Review[]
+  renderJobs                     RenderJob[]
+  exportPresets                  ExportPreset[]
+  usageRecords                   UsageRecord[]
+  costRecords                    CostRecord[]
+  auditLogs                      AuditLog[]
+  members                        ProjectMember[]
+  teamGrants                     ProjectTeam[]
+  memberRoles                    ProjectMemberRole[]
+  teamRoles                      ProjectTeamRole[]
 
   @@index([status])
   @@index([archivedAt])
@@ -725,10 +733,11 @@ model SourceDocument {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
-  project                  Project                   @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  versions                 SourceDocumentVersion[]   @relation("SourceDocumentVersions")
-  currentVersion           SourceDocumentVersion?    @relation("SourceDocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  chapterEntityExtractions ChapterEntityExtraction[]
+  project                        Project                         @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versions                       SourceDocumentVersion[]         @relation("SourceDocumentVersions")
+  currentVersion                 SourceDocumentVersion?          @relation("SourceDocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  chapterEntityExtractions       ChapterEntityExtraction[]
+  sourceVersionEntityResolutions SourceVersionEntityResolution[]
 
   @@index([projectId, status])
   @@index([projectId, archivedAt])
@@ -756,11 +765,12 @@ model SourceDocumentVersion {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
-  document                 SourceDocument            @relation("SourceDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  currentOf                SourceDocument?           @relation("SourceDocumentCurrentVersion")
-  segments                 SourceSegment[]
-  scriptVersions           ScriptVersion[]
-  chapterEntityExtractions ChapterEntityExtraction[]
+  document                       SourceDocument                  @relation("SourceDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  currentOf                      SourceDocument?                 @relation("SourceDocumentCurrentVersion")
+  segments                       SourceSegment[]
+  scriptVersions                 ScriptVersion[]
+  chapterEntityExtractions       ChapterEntityExtraction[]
+  sourceVersionEntityResolutions SourceVersionEntityResolution[]
 
   @@unique([documentId, version])
   @@index([documentId, status])
@@ -839,8 +849,9 @@ model ExtractedEntity {
   ordinal        Int
   createdAt      DateTime            @default(now())
 
-  extraction ChapterEntityExtraction  @relation(fields: [extractionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  mentions   ExtractedEntityMention[]
+  extraction          ChapterEntityExtraction  @relation(fields: [extractionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  mentions            ExtractedEntityMention[]
+  canonicalMembership CanonicalEntityMember?
 
   @@unique([extractionId, ordinal])
   @@index([extractionId, type])
@@ -868,6 +879,84 @@ model ExtractedEntityMention {
   @@unique([extractedEntityId, ordinal])
   @@index([sourceSegmentId, startOffset])
   @@map("extracted_entity_mentions")
+}
+
+model SourceVersionEntityResolution {
+  id                String                              @id @default(uuid()) @db.Uuid
+  projectId         String                              @db.Uuid
+  sourceDocumentId  String                              @db.Uuid
+  sourceVersionId   String                              @db.Uuid
+  normalizerName    String                              @db.VarChar(120)
+  normalizerVersion String                              @db.VarChar(50)
+  status            SourceVersionEntityResolutionStatus @default(PENDING)
+  errorMessage      String?
+  resolvedAt        DateTime?
+  createdAt         DateTime                            @default(now())
+  updatedAt         DateTime                            @updatedAt
+
+  project           Project               @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument    SourceDocument        @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceVersion     SourceDocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  canonicalEntities CanonicalEntity[]
+
+  @@unique([sourceVersionId, normalizerName, normalizerVersion])
+  @@index([projectId, status])
+  @@index([sourceDocumentId])
+  @@map("source_version_entity_resolutions")
+}
+
+model CanonicalEntity {
+  id             String              @id @default(uuid()) @db.Uuid
+  resolutionId   String              @db.Uuid
+  type           ExtractedEntityType
+  canonicalName  String              @db.VarChar(300)
+  normalizedName String              @db.VarChar(300)
+  confidence     Float?
+  metadata       Json?
+  ordinal        Int
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  resolution SourceVersionEntityResolution @relation(fields: [resolutionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  aliases    CanonicalEntityAlias[]
+  members    CanonicalEntityMember[]
+
+  @@unique([resolutionId, ordinal])
+  @@unique([resolutionId, type, normalizedName])
+  @@index([resolutionId, type])
+  @@map("canonical_entities")
+}
+
+model CanonicalEntityAlias {
+  id                String   @id @default(uuid()) @db.Uuid
+  canonicalEntityId String   @db.Uuid
+  name              String   @db.VarChar(300)
+  normalizedName    String   @db.VarChar(300)
+  isCanonical       Boolean  @default(false)
+  occurrenceCount   Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  canonicalEntity CanonicalEntity @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([canonicalEntityId, name])
+  @@index([normalizedName])
+  @@map("canonical_entity_aliases")
+}
+
+model CanonicalEntityMember {
+  id                String   @id @default(uuid()) @db.Uuid
+  canonicalEntityId String   @db.Uuid
+  extractedEntityId String   @unique @db.Uuid
+  matchMethod       String   @db.VarChar(80)
+  confidence        Float?
+  createdAt         DateTime @default(now())
+
+  canonicalEntity CanonicalEntity @relation(fields: [canonicalEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  extractedEntity ExtractedEntity @relation(fields: [extractedEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([canonicalEntityId])
+  @@map("canonical_entity_members")
 }
 
 model Script {

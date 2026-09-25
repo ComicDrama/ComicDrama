@@ -5,6 +5,9 @@ const path = require('node:path');
 const {
   BuiltinChapterEntityExtractor,
 } = require('../dist/source-documents/builtin-chapter-entity-extractor.service.js');
+const {
+  BuiltinEntityNormalizer,
+} = require('../dist/source-documents/builtin-entity-normalizer.service.js');
 
 const sample = fs.readFileSync(path.resolve(__dirname, '../../V1测试样本_雨夜的灯.md'), 'utf8');
 const firstChapterStart = sample.indexOf('## 第一章：最后一单');
@@ -43,4 +46,14 @@ assert.ok(
     (mention) => sample.slice(mention.startOffset, mention.endOffset) === mention.text,
   ),
 );
-console.log(`chapter entity extractor smoke test passed (${entities.length} candidates)`);
+
+const normalizer = new BuiltinEntityNormalizer();
+assert.equal(normalizer.normalize('TIME', '晚上十一点四十七分').normalizedName, '23:47');
+assert.equal(normalizer.normalize('TIME', '23:47').normalizedName, '23:47');
+assert.equal(
+  normalizer.normalize('CHARACTER', '许阿姨').normalizedName,
+  normalizer.normalize('CHARACTER', '许姨').normalizedName,
+);
+console.log(
+  `chapter entity extractor and normalizer smoke test passed (${entities.length} candidates)`,
+);

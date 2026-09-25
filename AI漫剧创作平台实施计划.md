@@ -1,4 +1,4 @@
-﻿# AI漫剧创作平台实施计划
+# AI漫剧创作平台实施计划
 
 > **版本**：v0.1
 > **制定日期**：2026-09-19
@@ -403,7 +403,12 @@
   - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、规则提取器样本 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
   - 验证结果：新增章节提取结果、实体和 mention 三层事实源；`CHAPTER_ENTITY_EXTRACTION` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry；规则提取器可从《雨夜的灯》第一章提取林砚、小满、许姨、青禾巷、旧电影院、铜铃、红色纸灯笼、`23:47` 和事件候选，且每个 mention 可回溯到来源段落的 UTF-16 偏移和行号。
   - 备注：当前为 `builtin-rule-chapter-entity-extractor@1.0.0` 确定性候选提取，不是 LLM 或人工确认；不会直接写入 Character/Location/Prop 主数据。跨章节归并留给 P3-09，关系/全局时间线留给 P3-10。
-- [ ] `P3-09` 实现跨章节实体合并和别名归一化。
+- [x] `P3-09` 实现跨章节实体合并和别名归一化。
+  - 完成日期：2026-09-25。
+  - 实现位置：`api/prisma/migrations/20260925000200_cross_chapter_entity_resolution/migration.sql`、`api/src/source-documents/builtin-entity-normalizer.service.ts`、`api/src/source-documents/cross-chapter-entity-resolution.service.ts`、`api/src/source-documents/cross-chapter-entity-resolution.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/chapter-entity-extractor.test.js`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
+  - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、归一化规则 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
+  - 验证结果：新增原文版本级归并结果、规范实体、别名与原始候选成员事实源；`CROSS_CHAPTER_ENTITY_RESOLUTION` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry。确定性归并器可将 `23:47` 与“晚上十一点四十七分”归一为 `23:47`，并可将“许阿姨”与“许姨”归为同一表面称谓候选，同时保留原始别名、章节来源和归并方法。
+  - 备注：仅在同一不可变 `SourceDocumentVersion` 内对 P3-08 成功结果归并；不是 LLM、人工确认或语义推断。不能确定的别名保持分离，不会改写 `ExtractedEntity`/mention 或直接写入 Character/Location/Prop 主数据；关系、事件因果和全局时间线留给 P3-10。
 - [ ] `P3-10` 实现人物关系、时间线和关键事件的结构化结果。
 - [ ] `P3-11` 生成世界观、角色、场景、道具初稿数据，并保留来源引用。
 - [ ] `P3-12` 实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
@@ -666,4 +671,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-08`。下一步实施 `P3-09`：实现跨章节实体合并和别名归一化。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-09`。下一步实施 `P3-10`：实现人物关系、时间线和关键事件的结构化结果。

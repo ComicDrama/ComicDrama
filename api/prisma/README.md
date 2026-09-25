@@ -201,3 +201,9 @@ Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、�
 - `ExtractedEntityMention`：保存每个候选的来源 `SourceSegment`、证据文本、规范化正文的 UTF-16 半开偏移、行号、证据说明和置信度。删除提取结果会级联删除其候选和 mention；来源段落被引用时受 `RESTRICT` 保护。
 
 P3-08 只保留章节内候选和可追溯证据，绝不覆盖原文/来源树，也不直接 upsert `Character`、`Location`、`Prop`。跨章节别名归一化属于 P3-09；人物关系、全局时间和事件因果属于 P3-10；将结果转成可人工维护的主数据属于 P3-11。
+
+## P3-09 跨章节实体归并事实源
+
+`20260925000200_cross_chapter_entity_resolution` 新增 `SourceVersionEntityResolution`、`CanonicalEntity`、`CanonicalEntityAlias` 和 `CanonicalEntityMember`。归并结果严格限于一个 `SourceDocumentVersion` 与一个 normalizer 名称/版本；同一版本、normalizer 名称和版本只能产生一条 resolution。
+
+`CanonicalEntity` 以实体类型和确定性归一化名称唯一，保存显示用规范名、聚合置信度、排序和归并元数据；`CanonicalEntityAlias` 保留每种原始别名与出现次数；`CanonicalEntityMember` 以唯一 `ExtractedEntity` 外键追溯每个原始章节候选。删除 resolution 会级联删除其规范实体、别名和成员；原始章节提取结果不被更新。该层是 P3 内容理解候选事实，不等同于 P2 的 `Character`、`Location`、`Prop` 主数据。
