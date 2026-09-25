@@ -1,7 +1,11 @@
 {
   "name": "comicdrama-platform",
   "private": true,
-  "workspaces": ["web", "api", "packages/*"],
+  "workspaces": [
+    "web",
+    "api",
+    "packages/*"
+  ],
   "scripts": {
     "format": "prettier --write .",
     "format:check": "prettier --check .",
