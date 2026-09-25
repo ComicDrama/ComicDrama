@@ -397,7 +397,12 @@
   - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实 PostgreSQL/对象存储请求需在 Docker 服务可用后补充执行。
   - 验证结果：TXT/Markdown 清洗会删除 BOM、统一换行并保留稳定 UTF-16 偏移；现有章节/小节/段落来源树写入 `SourceSegment`；新增 `SOURCE_DOCUMENT_SEGMENTATION` 可重入任务，使用 `Task.idempotencyKey`、`TaskAttempt`、状态机和显式 retry 端点避免重复执行，并将成功/失败结果写入任务事实源。
   - 备注：当前任务执行器在 API 内同步调用解析服务；后续接入 P6 Worker/Streams 时复用同一幂等键和任务记录，不把原始文件写入数据库。
-- [ ] `P3-08` 实现分章实体提取：角色、地点、道具、组织、时间、事件。
+- [x] `P3-08` 实现分章实体提取：角色、地点、道具、组织、时间、事件。
+  - 完成日期：2026-09-25。
+  - 实现位置：`api/prisma/migrations/20260925000100_chapter_entity_extractions/migration.sql`、`api/src/source-documents/chapter-entity-extractor.interface.ts`、`api/src/source-documents/builtin-chapter-entity-extractor.service.ts`、`api/src/source-documents/chapter-entity-extraction.service.ts`、`api/src/source-documents/chapter-entity-extraction.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/chapter-entity-extractor.test.js`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
+  - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、规则提取器样本 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
+  - 验证结果：新增章节提取结果、实体和 mention 三层事实源；`CHAPTER_ENTITY_EXTRACTION` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry；规则提取器可从《雨夜的灯》第一章提取林砚、小满、许姨、青禾巷、旧电影院、铜铃、红色纸灯笼、`23:47` 和事件候选，且每个 mention 可回溯到来源段落的 UTF-16 偏移和行号。
+  - 备注：当前为 `builtin-rule-chapter-entity-extractor@1.0.0` 确定性候选提取，不是 LLM 或人工确认；不会直接写入 Character/Location/Prop 主数据。跨章节归并留给 P3-09，关系/全局时间线留给 P3-10。
 - [ ] `P3-09` 实现跨章节实体合并和别名归一化。
 - [ ] `P3-10` 实现人物关系、时间线和关键事件的结构化结果。
 - [ ] `P3-11` 生成世界观、角色、场景、道具初稿数据，并保留来源引用。
@@ -661,4 +666,4 @@
 3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
 4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
 
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-07`。下一步实施 `P3-08`：实现分章实体提取。
+当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-08`。下一步实施 `P3-09`：实现跨章节实体合并和别名归一化。

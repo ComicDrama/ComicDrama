@@ -16,6 +16,7 @@
 - `20260921000200_core_table_governance` 对应实施计划中的 `P2-12`，补齐核心聚合根治理字段、项目查询路径和生命周期索引。
 - `20260922000100_access_control_models` 对应实施计划中的 `P2-14`，建立 `users`、`teams`、`team_members`、`project_members`、`project_teams` 以及通用项目访问级别。
 - `20260922000200_business_roles` 对应实施计划中的 `P2-15`，建立项目成员和项目团队的规范化业务角色分配。
+- `20260925000100_chapter_entity_extractions` 对应实施计划中的 `P3-08`，建立章节实体提取运行、候选实体与来源 mention 事实源。
 
 迁移执行、种子数据、失败处理与回滚边界见 [docs/database-migrations.md](../../docs/database-migrations.md)（实施计划 P2-13）。
 
@@ -190,3 +191,13 @@ Task 的 `resourceType` / `resourceId` 支持关联生成、导入、编译、�
 - `ProjectTeamRole`：将业务角色分配给项目内的团队授权关系；团队成员通过团队授权继承角色，具体有效权限由 P2-16 统一计算。
 
 角色分配表同时保存 `projectId`，用于项目范围查询和一致性检查；同一成员或团队在同一角色上只能有一条有效分配。P2-15 只定义角色数据和分配关系，不在数据库层硬编码每个角色的操作矩阵；操作级能力矩阵和继承/冲突处理由 P2-16 的服务端权限守卫实现。
+
+## P3-08 分章实体提取事实源
+
+`20260925000100_chapter_entity_extractions` 建立独立于 IP/资产主数据的章节理解结果层：
+
+- `ChapterEntityExtraction`：绑定项目、原文、不可变原文版本和 `CHAPTER` 来源节点，保存提取器名称/版本、运行状态、错误和完成时间。同一版本、章节、提取器名称和版本只能有一条结果；重跑在同一结果内替换候选数据。
+- `ExtractedEntity`：保存章节内的 `CHARACTER`、`LOCATION`、`PROP`、`ORGANIZATION`、`TIME`、`EVENT` 候选、规范化前名称、规则属性、置信度和稳定排序。
+- `ExtractedEntityMention`：保存每个候选的来源 `SourceSegment`、证据文本、规范化正文的 UTF-16 半开偏移、行号、证据说明和置信度。删除提取结果会级联删除其候选和 mention；来源段落被引用时受 `RESTRICT` 保护。
+
+P3-08 只保留章节内候选和可追溯证据，绝不覆盖原文/来源树，也不直接 upsert `Character`、`Location`、`Prop`。跨章节别名归一化属于 P3-09；人物关系、全局时间和事件因果属于 P3-10；将结果转成可人工维护的主数据属于 P3-11。

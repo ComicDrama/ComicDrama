@@ -9,8 +9,8 @@
 - V1 固定测试样本：`V1测试样本_雨夜的灯.md`
 - 架构说明：`AI漫剧平台架构说明书v1.1.md`
 - 实施计划：`AI漫剧创作平台实施计划.md`
-- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-07`
-- 当前阶段：P3 原文导入与内容理解；`P3-01`～`P3-07` 已完成，下一项为 `P3-07`（实现文档清洗、切章、切段和可重入任务）
+- 已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-08`
+- 当前阶段：P3 原文导入与内容理解；`P3-01`～`P3-08` 已完成，下一项为 `P3-09`（实现跨章节实体合并和别名归一化）
 - CI：GitHub Actions 已配置 Node.js 22、Python 3.13、Prisma、Prettier、ESLint、Ruff、Pytest、类型检查和构建检查
 
 ## 环境要求
@@ -142,5 +142,9 @@ P3 原文导入进度：
 - P3-04：TXT/Markdown 章节、段落、字符偏移量、行号和来源树解析
 - P3-05：原文预览、章节选择、段落定位和来源树查询 API（已完成）
 - P3-06：统一 Parser 接口、TXT/Markdown 注册和 DOCX/EPUB/PDF/Fountain/Final Draft XML 待实现任务登记（已完成）
+- P3-07：正文清洗、章节/段落来源树与 `SOURCE_DOCUMENT_SEGMENTATION` 可重入任务（已完成）
+- P3-08：按 `CHAPTER` 提取角色、地点、道具、组织、时间与事件候选；保存实体、证据段落、UTF-16 偏移和行号，支持可重入任务与显式重试（已完成）
+
+P3-08 当前使用 `builtin-rule-chapter-entity-extractor@1.0.0`，是可重复运行的规则提取器，不等同于 LLM 或人工确认。结果仅是章节内候选事实，不会直接写入 `Character`、`Location`、`Prop` 主数据；跨章节合并/别名归一化留给 P3-09，关系和全局时间线留给 P3-10。
 
 详细字段、迁移约束和后续业务校验见 [`api/prisma/README.md`](api/prisma/README.md)；迁移执行、种子数据与回滚流程见 [`docs/database-migrations.md`](docs/database-migrations.md)。

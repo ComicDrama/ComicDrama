@@ -258,3 +258,23 @@ x-trace-id: <optional-trace-id>
 - 每次实际执行创建一个 `TaskAttempt`，失败时同时写入任务和尝试记录的错误码、错误信息及重试状态；
 - 创建/重试接口需要项目 `EDIT` 权限，查询接口需要 `VIEW` 权限，接口成功完成后写入 `IMPORT` 类型 `AuditLog`；
 - 当前执行器在 API 内同步完成解析，后续接入 P6 Worker/Streams 时可复用同一 `Task`、`TaskAttempt` 和幂等键协议。
+
+## 分章实体提取（P3-08）
+
+P3-08 在已经处于 `READY` 状态的原文版本上，以一个 `CHAPTER` 来源节点为边界生成章节内候选实体。当前实现使用确定性规则提取器 `builtin-rule-chapter-entity-extractor@1.0.0`，输出类型为 `CHARACTER`、`LOCATION`、`PROP`、`ORGANIZATION`、`TIME` 和 `EVENT`。这不是 LLM 判断或人工确认；置信度表达规则匹配强度，后续 P3-09/P3-10 才会进行跨章节归一化、人物关系、时间线和关键事件结构化。
+
+```text
+POST /api/projects/:projectId/source-documents/:documentId/versions/:versionId/chapters/:chapterSegmentId/entity-extractions
+GET  /api/projects/:projectId/source-documents/:documentId/versions/:versionId/chapters/:chapterSegmentId/entity-extractions
+GET  /api/projects/:projectId/chapter-entity-extraction-tasks/:taskId
+POST /api/projects/:projectId/chapter-entity-extraction-tasks/:taskId/retry
+x-user-id: <active-user-uuid>
+```
+
+触发和重试需要项目 `EDIT` 权限并写入 `GENERATE` 类型的 `AuditLog`；读取结果或任务需要 `VIEW` 权限。服务端同时验证项目、文档、版本和章节的归属，拒绝非 `READY` 版本、非 `CHAPTER` 节点以及任何跨项目/跨版本的 `chapterSegmentId`。
+
+任务类型为 `CHAPTER_ENTITY_EXTRACTION`。同一 `sourceVersionId`、`chapterSegmentId`、提取器名称和版本共享稳定幂等键；重复提交复用既有 `Task`，运行中不会重新执行。失败任务可通过 retry 端点显式重试，尝试次数和状态保存在既有 `Task` / `TaskAttempt` 事实源。
+
+结果保存在 `ChapterEntityExtraction`、`ExtractedEntity` 和 `ExtractedEntityMention`：每个 mention 保存来源 `SourceSegment`、原文证据、清洗后正文中的 UTF-16 半开偏移 `[startOffset, endOffset)`、行号、规则证据和置信度。重跑相同提取器版本时会事务性重建其候选实体和 mentions，不修改对象存储原文、`SourceDocumentVersion.textContent`、来源树，也不会写入 `Character` / `Location` / `Prop` 主数据。
+
+`GET .../entity-extractions` 返回章节范围、提取器名称/版本、状态、按类型统计、章节内实体及每个实体的来源证据。若尚未触发该章节的提取，返回 `404`；客户端应先调用 POST 并根据任务状态轮询。

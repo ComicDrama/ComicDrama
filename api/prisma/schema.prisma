@@ -96,6 +96,22 @@ enum SourceSegmentType {
   PARAGRAPH
 }
 
+enum ChapterEntityExtractionStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum ExtractedEntityType {
+  CHARACTER
+  LOCATION
+  PROP
+  ORGANIZATION
+  TIME
+  EVENT
+}
+
 enum ScriptStatus {
   DRAFT
   IN_PROGRESS
@@ -483,31 +499,32 @@ model Project {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  seasons          Season[]
-  episodes         Episode[]
-  sourceDocuments  SourceDocument[]
-  scripts          Script[]
-  shots            Shot[]
-  timelines        Timeline[]
-  assets           Asset[]
-  assetCollections AssetCollection[]
-  characters       Character[]
-  locations        Location[]
-  props            Prop[]
-  generations      Generation[]
-  workflows        Workflow[]
-  tasks            Task[]
-  workflowRuns     WorkflowRun[]
-  reviews          Review[]
-  renderJobs       RenderJob[]
-  exportPresets    ExportPreset[]
-  usageRecords     UsageRecord[]
-  costRecords      CostRecord[]
-  auditLogs        AuditLog[]
-  members          ProjectMember[]
-  teamGrants       ProjectTeam[]
-  memberRoles      ProjectMemberRole[]
-  teamRoles        ProjectTeamRole[]
+  seasons                  Season[]
+  episodes                 Episode[]
+  sourceDocuments          SourceDocument[]
+  chapterEntityExtractions ChapterEntityExtraction[]
+  scripts                  Script[]
+  shots                    Shot[]
+  timelines                Timeline[]
+  assets                   Asset[]
+  assetCollections         AssetCollection[]
+  characters               Character[]
+  locations                Location[]
+  props                    Prop[]
+  generations              Generation[]
+  workflows                Workflow[]
+  tasks                    Task[]
+  workflowRuns             WorkflowRun[]
+  reviews                  Review[]
+  renderJobs               RenderJob[]
+  exportPresets            ExportPreset[]
+  usageRecords             UsageRecord[]
+  costRecords              CostRecord[]
+  auditLogs                AuditLog[]
+  members                  ProjectMember[]
+  teamGrants               ProjectTeam[]
+  memberRoles              ProjectMemberRole[]
+  teamRoles                ProjectTeamRole[]
 
   @@index([status])
   @@index([archivedAt])
@@ -708,9 +725,10 @@ model SourceDocument {
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
-  project        Project                 @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  versions       SourceDocumentVersion[] @relation("SourceDocumentVersions")
-  currentVersion SourceDocumentVersion?  @relation("SourceDocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  project                  Project                   @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  versions                 SourceDocumentVersion[]   @relation("SourceDocumentVersions")
+  currentVersion           SourceDocumentVersion?    @relation("SourceDocumentCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  chapterEntityExtractions ChapterEntityExtraction[]
 
   @@index([projectId, status])
   @@index([projectId, archivedAt])
@@ -738,10 +756,11 @@ model SourceDocumentVersion {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
-  document       SourceDocument  @relation("SourceDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  currentOf      SourceDocument? @relation("SourceDocumentCurrentVersion")
-  segments       SourceSegment[]
-  scriptVersions ScriptVersion[]
+  document                 SourceDocument            @relation("SourceDocumentVersions", fields: [documentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  currentOf                SourceDocument?           @relation("SourceDocumentCurrentVersion")
+  segments                 SourceSegment[]
+  scriptVersions           ScriptVersion[]
+  chapterEntityExtractions ChapterEntityExtraction[]
 
   @@unique([documentId, version])
   @@index([documentId, status])
@@ -765,18 +784,90 @@ model SourceSegment {
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
-  version         SourceDocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  parent          SourceSegment?        @relation("SourceSegmentTree", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  children        SourceSegment[]       @relation("SourceSegmentTree")
-  scriptScenes    Scene[]               @relation("SceneSourceSegment")
-  scriptBeats     Beat[]                @relation("BeatSourceSegment")
-  scriptDialogues Dialogue[]            @relation("DialogueSourceSegment")
-  shotVersions    ShotVersion[]         @relation("ShotVersionSourceSegment")
+  version                  SourceDocumentVersion     @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parent                   SourceSegment?            @relation("SourceSegmentTree", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  children                 SourceSegment[]           @relation("SourceSegmentTree")
+  scriptScenes             Scene[]                   @relation("SceneSourceSegment")
+  scriptBeats              Beat[]                    @relation("BeatSourceSegment")
+  scriptDialogues          Dialogue[]                @relation("DialogueSourceSegment")
+  shotVersions             ShotVersion[]             @relation("ShotVersionSourceSegment")
+  chapterEntityExtractions ChapterEntityExtraction[] @relation("ChapterEntityExtractionChapter")
+  extractedEntityMentions  ExtractedEntityMention[]
 
   @@unique([versionId, ordinal])
   @@index([versionId, type])
   @@index([parentId])
   @@map("source_segments")
+}
+
+model ChapterEntityExtraction {
+  id               String                        @id @default(uuid()) @db.Uuid
+  projectId        String                        @db.Uuid
+  sourceDocumentId String                        @db.Uuid
+  sourceVersionId  String                        @db.Uuid
+  chapterSegmentId String                        @db.Uuid
+  extractorName    String                        @db.VarChar(120)
+  extractorVersion String                        @db.VarChar(50)
+  status           ChapterEntityExtractionStatus @default(PENDING)
+  errorMessage     String?
+  extractedAt      DateTime?
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  project        Project               @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceDocument SourceDocument        @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sourceVersion  SourceDocumentVersion @relation(fields: [sourceVersionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  chapterSegment SourceSegment         @relation("ChapterEntityExtractionChapter", fields: [chapterSegmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  entities       ExtractedEntity[]
+
+  @@unique([sourceVersionId, chapterSegmentId, extractorName, extractorVersion])
+  @@index([projectId, status])
+  @@index([sourceDocumentId])
+  @@index([chapterSegmentId])
+  @@map("chapter_entity_extractions")
+}
+
+model ExtractedEntity {
+  id             String              @id @default(uuid()) @db.Uuid
+  extractionId   String              @db.Uuid
+  type           ExtractedEntityType
+  name           String              @db.VarChar(300)
+  normalizedName String              @db.VarChar(300)
+  description    String?
+  attributes     Json?
+  confidence     Float?
+  ordinal        Int
+  createdAt      DateTime            @default(now())
+
+  extraction ChapterEntityExtraction  @relation(fields: [extractionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  mentions   ExtractedEntityMention[]
+
+  @@unique([extractionId, ordinal])
+  @@index([extractionId, type])
+  @@index([type, normalizedName])
+  @@map("extracted_entities")
+}
+
+model ExtractedEntityMention {
+  id                String   @id @default(uuid()) @db.Uuid
+  extractedEntityId String   @db.Uuid
+  sourceSegmentId   String   @db.Uuid
+  text              String   @db.Text
+  startOffset       Int
+  endOffset         Int
+  startLine         Int?
+  endLine           Int?
+  evidence          String?
+  confidence        Float?
+  ordinal           Int
+  createdAt         DateTime @default(now())
+
+  extractedEntity ExtractedEntity @relation(fields: [extractedEntityId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sourceSegment   SourceSegment   @relation(fields: [sourceSegmentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([extractedEntityId, ordinal])
+  @@index([sourceSegmentId, startOffset])
+  @@map("extracted_entity_mentions")
 }
 
 model Script {
