@@ -1,4 +1,4 @@
-﻿-- P3-08: chapter-scoped, source-traceable entity extraction results.
+-- P3-08: chapter-scoped, source-traceable entity extraction results.
 
 CREATE TYPE "ChapterEntityExtractionStatus" AS ENUM ('PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED');
 CREATE TYPE "ExtractedEntityType" AS ENUM ('CHARACTER', 'LOCATION', 'PROP', 'ORGANIZATION', 'TIME', 'EVENT');

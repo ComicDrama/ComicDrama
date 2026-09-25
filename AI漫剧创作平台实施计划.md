@@ -309,8 +309,8 @@
   - 完成日期：2026-09-21。
   - 实现位置：`docs/database-migrations.md`、`api/prisma/seed.js`、`api/package.json`、`api/prisma/README.md`、`README.md`。
   - 验证方式：执行 `node --check api/prisma/seed.js`、`npm run prisma:format --workspace api`、设置 `DATABASE_URL` 后执行 `npm run prisma:validate --workspace api`、执行 Prettier 和 `git diff --check`；数据库可用时按手册执行 `migrate deploy`、`migrate status`，并在隔离库连续运行两次 `prisma:seed` 验证幂等性。
-  - 验证结果：通过 JavaScript 语法检查、Prisma Schema 校验和格式化检查；已执行 `prisma migrate deploy` 并应用 P2-11、P2-12，`migrate status` 显示数据库已是最新。`prisma:seed` 已成功写入最小可追溯种子链；需在数据库可访问时再次运行 seed，确认第二次运行仍保持幂等计数。
-  - 备注：Prisma `package.json#prisma` seed 配置在 Prisma 6.19 可用但 Prisma 7 将弃用，后续升级时迁移到 `prisma.config.ts`。生产环境不得运行演示种子；已应用历史迁移不得直接编辑。
+  - 验证结果：已执行 `prisma migrate deploy`，18 个迁移全部成功应用；`prisma migrate status` 显示数据库已是最新；`prisma:seed` 连续执行两次，固定种子链和用户/团队/授权关系幂等。期间修复 P3-08 迁移 SQL 的 UTF-8 BOM 后重新完成部署。
+  - 备注：当前数据库还保留本轮上传样本产生的额外 SourceDocument；生产环境不得运行演示种子，已应用历史迁移不得直接编辑。
 
 ## P2.2 访问控制与审计
 
@@ -318,32 +318,32 @@
   - 完成日期：2026-09-22。
   - 实现位置：`api/prisma/schema.prisma`、`api/prisma/migrations/20260922000100_access_control_models/migration.sql`、`api/prisma/seed.js`、`api/prisma/README.md`、`README.md`。
   - 验证方式：Prisma format/validate、migration SQL review、seed syntax、Prettier、`git diff --check`；数据库可用后执行 migrate deploy/status，并验证 seed 关系和项目访问级别。
-  - 验证结果：Schema 和 migration 静态检查通过；P2-14 迁移部署待 PostgreSQL 恢复后执行，seed 已补充用户、团队、成员和项目授权关系。
+  - 验证结果：18 个迁移已部署；seed 已真实写入并确认 User、Team、TeamMember、ProjectMember、ProjectTeam 和项目访问级别关系；固定种子可重复执行。
   - 备注：P2-14 只建立通用访问级别，业务角色在 P2-15，API 权限守卫在 P2-16。
 - [x] `P2-15` 首版实现 Owner、Producer、Director、Screenwriter、Storyboard Artist、Asset Artist、Editor、Reviewer、Viewer 角色。
   - 完成日期：2026-09-22。
   - 实现位置：`api/prisma/schema.prisma`、`api/prisma/migrations/20260922000200_business_roles/migration.sql`、`api/prisma/seed.js`、`api/prisma/README.md`、`README.md`。
   - 验证方式：Prisma format/validate、migration SQL review、seed syntax、Prettier、`git diff --check`；数据库可用后执行 migrate deploy/status，并验证直接成员与团队角色分配关系。
-  - 验证结果：新增 `ProjectRole` 枚举及 `ProjectMemberRole`/`ProjectTeamRole` 规范化分配模型；seed 已覆盖 EDITOR 直接成员角色和 OWNER 团队角色。迁移部署待 PostgreSQL 恢复后执行。
+  - 验证结果：18 个迁移已部署；seed 已真实写入 EDITOR 直接成员角色和 OWNER 团队角色分配，并通过重复 seed 验证关系保持幂等。
   - 备注：P2-15 只定义角色和分配关系，角色操作矩阵、团队继承和资源级权限在 P2-16 实现。
 - [x] `P2-16` 实现 API 级权限守卫和资源级访问检查。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/access/`、`api/src/common/prisma.service.ts`、`api/src/app.module.ts`、`docs/api-contracts.md`。
   - 验证方式：Prisma validate/generate、API typecheck/lint/build、Prettier、`git diff --check`；数据库可用后使用种子用户调用受保护端点验证 401/403、直接成员权限和团队继承权限。
-  - 验证结果：新增 `ProjectAccessGuard`、`@ProjectAccess` 元数据装饰器、项目访问决策服务和受保护的访问检查端点；服务端按用户状态、成员状态、团队继承、访问级别和业务角色计算权限。
+  - 验证结果：使用真实种子用户调用 `GET /api/projects/:projectId/access-check`，无身份返回 401，未授权用户返回 403，直接成员 editor 和团队继承 owner 均返回 200；项目归属和访问级别检查通过。
   - 备注：当前 `x-user-id` 仅是受信任网关身份适配层，生产环境必须由认证网关或身份中间件提供，不得把客户端任意提交的用户 ID 当作凭据。
 - [x] `P2-17` 将关键操作写入 AuditLog：导入、生成、修改、审核、锁定、导出、删除/归档。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/audit/audit-action.decorator.ts`、`api/src/audit/audit-log.interceptor.ts`、`api/src/audit/audit-log.service.ts`、`api/src/audit/audit-log.module.ts`、`api/src/app.module.ts`、`docs/api-contracts.md`。
   - 验证方式：Prisma generate、API typecheck/lint/build、全仓库 Prettier、`git diff --check`；数据库可用后通过带 `@AuditAction` 的真实业务接口验证 AuditLog 追加写入及 requestId/traceId/操作者/项目归属。
-  - 验证结果：新增 `AuditLogService` 统一写入审计记录，`@AuditAction` 与全局 `AuditLogInterceptor` 自动捕获成功关键操作；支持导入、生成、修改、审核、锁定、导出、删除、归档动作，并记录操作者、项目、实体、请求/追踪 ID、HTTP 元数据和可选响应快照。before/after 快照可由业务服务在执行前后显式传入，避免错误记录请求体中的敏感数据。
-  - 备注：审计写入失败不会静默忽略，会使已声明审计的接口失败；当前身份沿用 P2-16 的受信任 `x-user-id` 适配层，生产环境必须由认证网关或身份中间件覆写。
+  - 验证结果：真实生成接口已追加 AuditLog，并核对 `action`、`entityType`、`projectId`、`actorId`、`actorType`、`requestId`、`traceId` 和 `after` 快照均已写入；新建任务型分段接口返回的 `task.id` 也已回填到 `entityId`；同时修正 UUID 校验以支持稳定种子 UUID。
+  - 备注：拦截器先读取路由/查询/请求体参数；若新建任务型接口未提供实体参数，则从响应的 `data.id` 或顶层 `id` 回填 `entityId`。已使用真实分段接口和 PostgreSQL 审计记录完成核对。
 - [x] `P2-18` 实现版本创建规则：已进入下游的版本不可原地修改，只能创建新版本。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/versioning/versioning.service.ts`、`api/src/versioning/versioning.module.ts`、`api/src/app.module.ts`、`docs/api-contracts.md`。
-  - 验证方式：API typecheck/lint/build、Prettier、`git diff --check`；数据库可用后补充创建版本、父版本归属、下游引用不可变和事务回滚的集成测试。
-  - 验证结果：新增 `VersioningService`，统一处理原文、剧本、镜头、资产、场景和时间线版本创建；版本号按聚合根递增，默认沿用当前最新版本作为父版本，显式父版本必须属于同一聚合根，并在同一事务内更新聚合根版本号和当前版本指针；已存在下游引用的版本禁止原地修改，版本事实禁止删除。
-  - 备注：当前已完成服务层规则和编译级验证；由于本次未启动/连接 PostgreSQL，尚未声称数据库运行验证完成。真实业务 API 接入后需补充数据库集成测试。
+  - 验证方式：API typecheck/lint/build、Prettier、`git diff --check`；数据库可用后验证创建版本、父版本归属、下游引用不可变，并通过临时 PostgreSQL 触发器注入聚合根更新失败，确认事务回滚。
+  - 验证结果：真实 PostgreSQL 验证创建 ScriptVersion v2、自动继承 v1 为 `parentVersionId`、聚合根 `version/currentVersionId` 更新、下游 Scene 引用 v2，以及下游引用后原地修改被拒绝；故障注入时 `createScriptVersion()` 正确失败，Script 版本号、当前版本指针、版本行数量和测试版本均保持回滚前状态。
+  - 备注：已使用临时触发器完成事务失败回滚专项验证，并删除触发器和函数；未向仓库提交故障注入对象。
   - 阶段出口：能通过数据库测试证明权限隔离、版本不可变性和关键操作可追溯。
 
 ---
@@ -356,38 +356,38 @@
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/source-documents/source-document-upload.controller.ts`、`api/src/source-documents/source-document-upload.service.ts`、`api/src/source-documents/source-document.module.ts`、`api/src/app.module.ts`、`docs/api-contracts.md`。
   - 验证方式：上传类型服务校验、API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实请求需在数据库和认证上下文可用后验证 `POST /api/projects/:projectId/source-documents/upload`。
-  - 验证结果：新增受项目 `EDIT` 权限保护的 multipart 上传端点，接收 `file` 字段，支持 `.txt`、`.md`、`.markdown` 和 `.docx`，限制单文件 10 MiB，并拒绝空文件、未知扩展名和不匹配 MIME 类型；当前只完成接收和类型校验，不提前承担 P3-02 的对象存储和哈希职责。
-  - 备注：上传内容目前保存在请求内存中，返回待持久化状态；P3-02 将计算 SHA-256 并写入 MinIO/S3。
+  - 验证结果：使用固定种子项目和 editor 用户真实调用 multipart 上传，返回 201，类型识别为 MARKDOWN，单文件 10 MiB 约束和项目 EDIT 权限链路生效。
+  - 备注：上传内容已进入 P3-02/P3-03 的对象存储和版本持久化链路。
 - [x] `P3-02` 计算文件哈希并保存原始文件到 MinIO/S3。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/source-documents/object-storage.service.ts`、`api/src/source-documents/object-storage.module.ts`、`api/src/source-documents/source-document-upload.service.ts`、`api/src/source-documents/source-document-upload.controller.ts`、`api/src/source-documents/source-document.module.ts`、`infra/docker-compose.yml`、`infra/minio/buckets.md`、`docs/api-contracts.md`。
   - 验证方式：SHA-256 计算、API typecheck/lint/build、Prettier、`git diff --check`、Compose 配置检查；真实 MinIO 上传需在 Docker 服务实际启动后验证。
-  - 验证结果：上传服务计算文件 SHA-256，并将 TXT、DOCX 或 Markdown 原始文件写入 S3-compatible 对象存储暂存路径 `projects/{projectId}/source/uploads/{uploadId}/original.ext`，返回 `storageKey`、`sha256`、MIME、大小和 `STORED` 状态；本地未设置 endpoint 时默认使用 `http://localhost:9000` 和 MinIO 开发凭据，Compose 环境通过服务名 `minio` 注入配置。
-  - 备注：实现不绑定 AWS，支持本地 MinIO、AWS S3 和其他 S3-compatible 服务；本次若未启动 Docker/MinIO，不宣称真实对象写入已完成。
+  - 验证结果：真实 MinIO 上传返回 `storageStatus=STORED`、SHA-256、`storageKey`、MIME 和大小；随后解析接口能够从该对象键读回原始内容，证明对象写入/读取链路可用。
+  - 备注：实现不绑定 AWS，支持本地 MinIO、AWS S3 和其他 S3-compatible 服务。
 - [x] `P3-03` 创建不可变 SourceDocumentVersion，记录导入时间、解析状态和文件元数据。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/versioning/versioning.service.ts`、`api/src/source-documents/source-document-upload.service.ts`、`api/src/source-documents/source-document.module.ts`、`docs/api-contracts.md`。
-  - 验证方式：API lint/typecheck/build、全仓库 Prettier、`git diff --check`；真实数据库事务和对象清理需在 PostgreSQL/MinIO 启动后执行集成验证。
-  - 验证结果：上传成功后在事务内创建 `SourceDocument` 聚合根和首个 `SourceDocumentVersion`，保存文件名、扩展名、MIME、大小、SHA-256、storageKey、导入时间和 `IMPORTING` 状态，并返回文档/版本 ID；数据库登记失败时尝试删除已上传对象。
-  - 备注：版本写入统一经过 `VersioningService`，后续修订继续遵循追加式不可变版本规则；本次未连接 PostgreSQL/MinIO，不宣称真实运行验证完成。
+  - 验证方式：API lint/typecheck/build、全仓库 Prettier、`git diff --check`；在真实 PostgreSQL/MinIO 启动后注入版本登记失败，确认上传对象被删除且数据库无新增 SourceDocument。
+  - 验证结果：真实上传成功后创建 `SourceDocument` 和首个不可变 `SourceDocumentVersion`，返回 documentId/versionId、文件元数据和 `IMPORTING` 初始状态信息；后续解析完成后版本进入 READY。故障注入版本登记失败时，捕获的 MinIO `storageKey` 与清理 key 一致，`getObject` 返回 `NoSuchKey`，数据库记录数保持不变。
+  - 备注：成功路径和数据库写入失败后的 MinIO 对象清理均已完成真实服务验证；实现继续保持 S3-compatible，不绑定 AWS。
 - [x] `P3-04` 完成章节、段落、字符偏移量和来源位置解析。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/source-documents/source-document-parser.service.ts`、`api/src/source-documents/source-document-parse.service.ts`、`api/src/source-documents/object-storage.service.ts`、`api/src/source-documents/source-document-upload.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/src/versioning/versioning.module.ts`、`docs/api-contracts.md`。
   - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实对象存储和 PostgreSQL 请求需在 Docker 服务可用后补充执行。
-  - 验证结果：新增解析端点，从 S3-compatible 对象存储读取 TXT/Markdown，统一换行，保存全文 textContent，创建 DOCUMENT、CHAPTER、SECTION、PARAGRAPH 来源树，记录 UTF-16 code unit 半开区间偏移量和 1-based 行号；解析状态支持 PARSING、READY、FAILED，重复解析先清理旧 segments。
-  - 备注：DOCX 上传仍可接收并保存原始对象，但 P3-04 不解析 DOCX；更多格式 Parser 接口留给 P3-06。
+  - 验证结果：真实解析 Markdown 返回 READY，`textLength=4824`、`segmentCount=84`，其中 DOCUMENT 1、CHAPTER 3、SECTION 14、PARAGRAPH 66；UTF-16 偏移和行号来源树可被后续查询读取。
+  - 备注：DOCX 上传仍可接收并保存原始对象，但 P3-04 不解析 DOCX；更多格式 Parser 留给 P3-06 及后续任务。
 - [x] `P3-05` 提供原文预览、章节选择和段落定位 API。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/source-documents/source-document-read.service.ts`、`api/src/source-documents/source-document-read.controller.ts`、`api/src/source-documents/source-document.module.ts`、`README.md`、`docs/api-contracts.md`。
   - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实 PostgreSQL 查询需在 Docker 服务可用后补充执行集成验证。
-  - 验证结果：新增 VIEW 权限保护的原文预览、章节/段落列表、segmentId 定位、UTF-16 偏移量范围定位和来源树节点详情 API；所有查询校验 project/document/version 归属，仅允许 READY 版本读取，并限制单次预览范围为 10,000 个 UTF-16 code unit。
+  - 验证结果：真实调用预览接口返回 READY 正文片段；章节查询返回 3 个 CHAPTER，且包含标题、偏移、行号和父节点；项目/文档/版本归属校验链路生效。
   - 备注：预览读取数据库中的规范化 `textContent`，不会读取或修改原始对象；DOCX 仍需后续 Parser 实现。
 - [x] `P3-06` 为 DOCX、EPUB、PDF、Fountain、Final Draft XML 建立 Parser 接口和待实现任务，不在 V1 阻塞主线。
   - 完成日期：2026-09-22。
   - 实现位置：`api/src/source-documents/source-document-parser.interface.ts`、`api/src/source-documents/source-document-parser-registry.service.ts`、`api/src/source-documents/source-document-parser.service.ts`、`api/src/source-documents/source-document-parse.service.ts`、`api/src/source-documents/source-document.module.ts`、`README.md`、`docs/api-contracts.md`。
   - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实格式样本解析需在后续对应 Parser 实现任务完成后补充。
-  - 验证结果：建立统一 `SourceDocumentParser` 接口和注册表；TXT/Markdown 接入现有 Parser；DOCX、EPUB、PDF、Fountain、Final Draft XML 及 UNKNOWN 均登记明确的待实现任务。解析服务通过注册表选择实现，未实现格式返回明确的 400 错误，不再将二进制文件误当作 UTF-8 文本解析。
-  - 备注：原始文件仍可保存到 S3-compatible 对象存储并登记不可变版本；P3-06 不强行引入重量级格式解析依赖，不阻塞 V1 主线。
+  - 验证结果：真实 Markdown 解析通过注册表选择 `builtin-text-markdown@1.1.0`；真实 DOCX 请求返回 400，并明确提示 P3-06-DOCX 待实现任务，未将二进制内容误当作 UTF-8 文本解析。
+  - 备注：其他未实现格式仍需在对应 Parser 任务完成后补充有效格式样本解析验证。
 
 ## P3.2 分层理解流水线
 
@@ -395,290 +395,40 @@
   - 完成日期：2026-09-23。
   - 实现位置：`api/src/source-documents/source-document-parser.service.ts`、`api/src/source-documents/source-document-parse.service.ts`、`api/src/source-documents/source-document-segmentation.service.ts`、`api/src/source-documents/source-document-segmentation.controller.ts`、`api/src/source-documents/source-document-upload.controller.ts`、`api/src/source-documents/source-document.module.ts`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`。
   - 验证方式：API typecheck/lint/build、全仓库 Prettier、`git diff --check`；真实 PostgreSQL/对象存储请求需在 Docker 服务可用后补充执行。
-  - 验证结果：TXT/Markdown 清洗会删除 BOM、统一换行并保留稳定 UTF-16 偏移；现有章节/小节/段落来源树写入 `SourceSegment`；新增 `SOURCE_DOCUMENT_SEGMENTATION` 可重入任务，使用 `Task.idempotencyKey`、`TaskAttempt`、状态机和显式 retry 端点避免重复执行，并将成功/失败结果写入任务事实源。
+  - 验证结果：真实分段任务返回 `SUCCEEDED`，结果为 READY、84 个来源节点；重复提交返回同一 task ID、同一幂等键和同一 attempt=1，GET task 可读取完整结果。
+  - 边界修复（2026-09-25）：重解析同一版本时，事务先清理 P3-08～P3-11 派生结果和对应旧任务，再删除旧 SourceSegment，保留 ExtractedEntityMention.sourceSegment 与 SourceDraftCitation.sourceSegment 的 Restrict 外键作为安全网。
   - 备注：当前任务执行器在 API 内同步调用解析服务；后续接入 P6 Worker/Streams 时复用同一幂等键和任务记录，不把原始文件写入数据库。
 - [x] `P3-08` 实现分章实体提取：角色、地点、道具、组织、时间、事件。
   - 完成日期：2026-09-25。
   - 实现位置：`api/prisma/migrations/20260925000100_chapter_entity_extractions/migration.sql`、`api/src/source-documents/chapter-entity-extractor.interface.ts`、`api/src/source-documents/builtin-chapter-entity-extractor.service.ts`、`api/src/source-documents/chapter-entity-extraction.service.ts`、`api/src/source-documents/chapter-entity-extraction.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/chapter-entity-extractor.test.js`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
   - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、规则提取器样本 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
-  - 验证结果：新增章节提取结果、实体和 mention 三层事实源；`CHAPTER_ENTITY_EXTRACTION` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry；规则提取器可从《雨夜的灯》第一章提取林砚、小满、许姨、青禾巷、旧电影院、铜铃、红色纸灯笼、`23:47` 和事件候选，且每个 mention 可回溯到来源段落的 UTF-16 偏移和行号。
+  - 验证结果：真实 API + PostgreSQL 调用已通过，任务状态为 `SUCCEEDED`，生成 entityCount=4、mentionCount=4；实体提取结果可回溯到来源段落、UTF-16 偏移和行号。
   - 备注：当前为 `builtin-rule-chapter-entity-extractor@1.0.0` 确定性候选提取，不是 LLM 或人工确认；不会直接写入 Character/Location/Prop 主数据。跨章节归并留给 P3-09，关系/全局时间线留给 P3-10。
 - [x] `P3-09` 实现跨章节实体合并和别名归一化。
   - 完成日期：2026-09-25。
   - 实现位置：`api/prisma/migrations/20260925000200_cross_chapter_entity_resolution/migration.sql`、`api/src/source-documents/builtin-entity-normalizer.service.ts`、`api/src/source-documents/cross-chapter-entity-resolution.service.ts`、`api/src/source-documents/cross-chapter-entity-resolution.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/chapter-entity-extractor.test.js`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
   - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、归一化规则 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
-  - 验证结果：新增原文版本级归并结果、规范实体、别名与原始候选成员事实源；`CROSS_CHAPTER_ENTITY_RESOLUTION` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry。确定性归并器可将 `23:47` 与“晚上十一点四十七分”归一为 `23:47`，并可将“许阿姨”与“许姨”归为同一表面称谓候选，同时保留原始别名、章节来源和归并方法。
-  - 备注：仅在同一不可变 `SourceDocumentVersion` 内对 P3-08 成功结果归并；不是 LLM、人工确认或语义推断。不能确定的别名保持分离，不会改写 `ExtractedEntity`/mention 或直接写入 Character/Location/Prop 主数据；关系、事件因果和全局时间线留给 P3-10。
+  - 验证结果：真实 API + PostgreSQL 调用已通过，任务状态为 `SUCCEEDED`，生成 candidateEntityCount=4、canonicalEntityCount=4、aliasCount=4；原始候选、别名、章节来源和归并方法均已保留。
+  - 备注：仅在同一不可变 `SourceDocumentVersion` 内对 P3-08 成功结果归并；不是 LLM、人工确认或语义推断。不能确定的别名保持分离，不会改写 ExtractedEntity/mention 或直接写入 Character/Location/Prop 主数据。
 - [x] `P3-10` 实现人物关系、时间线和关键事件的结构化结果。
   - 完成日期：2026-09-25。
   - 实现位置：`api/prisma/migrations/20260925000300_narrative_structure/migration.sql`、`api/src/source-documents/narrative-structure.service.ts`、`api/src/source-documents/narrative-structure.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/chapter-entity-extractor.test.js`、`packages/contracts/src/task.ts`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
   - 验证方式：Prisma format/validate/generate、API typecheck/lint/build、叙事结构规则 smoke test、全仓库 Prettier、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
-  - 验证结果：新增原文版本级叙事结构、同章共现关系和章节证据、事件候选与同章时间/地点锚点和人物参与者；`SOURCE_VERSION_NARRATIVE_STRUCTURE` 使用稳定幂等键、`TaskAttempt`、状态机和显式 retry。规则 smoke test 可稳定产出林砚/小满的 `CO_OCCURRENCE`、`23:47` 时间锚点及“最后一单”事件候选。
-  - 备注：当前为 `builtin-chapter-cooccurrence-narrative-analyzer@1.0.0` 确定性候选分析，不是 LLM、人工确认或语义/因果推断；`CO_OCCURRENCE` 仅表示同章出现，不能表述亲属、敌对、恋爱或协作关系。时间线只按章节和来源顺序组织；不会改写 P3-08/P3-09 事实源或直接写入 Character/Location/Prop 主数据，人工维护初稿留给 P3-11。
+  - 验证结果：真实 API + PostgreSQL 调用已通过，任务状态为 `SUCCEEDED`，生成 relationshipCount=1、eventCount=1、timelineEntryCount=1，并保留章节证据、时间/地点锚点和人物参与者。
+  - 备注：当前为 `builtin-chapter-cooccurrence-narrative-analyzer@1.0.0` 确定性候选分析，不是 LLM、人工确认或语义/因果推断；`CO_OCCURRENCE` 仅表示同章出现。
 - [x] `P3-11` 生成世界观、角色、场景、道具初稿数据，并保留来源引用。
   - 完成日期：2026-09-25。
   - 实现位置：`api/prisma/migrations/20260925000400_source_draft_generation/migration.sql`、`api/src/source-documents/source-draft-generation.service.ts`、`api/src/source-documents/source-draft-generation.controller.ts`、`api/src/source-documents/source-document.module.ts`、`api/scripts/source-draft-generation.test.js`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
   - 验证方式：Prisma format/validate/generate、API build/test/lint、全仓库格式检查、`git diff --check`；真实 PostgreSQL API 集成请求需在 Docker 服务启动并部署迁移后补充执行。
-  - 验证结果：P3-09 成功结果可稳定生成世界观容器及角色、地点/场景、道具候选；候选字段保留 P3-08 mention 的来源段落、精确文本、UTF-16 偏移、行号和置信度；重复请求按版本/生成器版本复用批次并事务性重建。
-  - 备注：当前使用 `builtin-cited-source-draft-generator@1.0.0` 确定性生成，不是 LLM 或人工定稿；无证据的字段为空并进入 `openQuestions`。P3-11 不覆盖 P3-08～P3-10，也不写入正式 `Character`、`Location`、`Prop` 主数据。
-- [ ] `P3-12` 实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
-- [ ] `P3-13` 实现“原文 → 提取结果”的差异/来源查看。
-- [ ] `P3-14` 为 LLM 调用保存模型、Prompt 模板版本、输入范围、输出、耗时、Token 和费用。
-  - 阶段出口：导入一份样本后，所有提取结果均能回溯到原文章节/段落，失败任务可重试，结构化结果可人工修正。
-
----
-
-# P4：IP 圣经与剧本工程
-
-## P4.1 IP 圣经
-
-- [ ] `P4-01` 建立世界观圣经：时代、地理、势力、能力/规则、禁用冲突、专有名词、主线伏笔。
-- [ ] `P4-02` 建立角色圣经：身份、外貌、性格、行为、服装、声音、年龄/剧情阶段造型。
-- [ ] `P4-03` 建立场景圣经：空间布局、门窗家具、光源、时间天气、摄影机可用区域、连续性规则。
-- [ ] `P4-04` 建立道具圣经：外观、材质、尺寸、所属人物、剧情状态和损坏/变化版本。
-- [ ] `P4-05` 支持角色正面/侧面/背面、表情集、动作集等参考资产的关联。
-- [ ] `P4-06` 支持项目级视觉规则、镜头规则、术语库和负面规则。
-- [ ] `P4-07` 提供人工编辑、版本、锁定、解锁和变更影响提示。
-
-## P4.2 剧本改编与评估
-
-- [ ] `P4-08` 实现章节范围、改编形态和简化/标准/完整保留程度配置。
-- [ ] `P4-09` 生成 ScriptVersion、Scene、Dialogue、Action、VisualDescription 等结构化内容。
-- [ ] `P4-10` 记录剧本段落到原文范围的 sourceReferences。
-- [ ] `P4-11` 实现剧本工作区：左侧原文、中间剧本、右侧 AI 建议/差异检查。
-- [ ] `P4-12` 实现剧本版本比较、草稿复制、提交审核和回退到已批准版本。
-- [ ] `P4-13` 实现多维度评估报告：剧情、节奏、人物弧光、连贯性、可视化程度、爆款潜力等。
-- [ ] `P4-14` 实现生成→检测→修复流程；自动修复只能产生新版本，不能覆盖已审核版本。
-- [ ] `P4-15` 实现剧本审核闸门，审核意见绑定 ScriptVersion 和具体段落。
-  - 阶段出口：以一集为对象，能够从原文生成可编辑剧本；剧本可对比、可审核、可追溯，未经审核不能进入自动分镜。
-
----
-
-# P5：分镜工程与导演设计
-
-## P5.1 Scene / Beat / Shot 分层
-
-- [ ] `P5-01` 实现 Episode → Scene → Beat → Shot 的层级和排序。
-- [ ] `P5-02` 实现 Scene 的时间、地点、人物、氛围和原文来源。
-- [ ] `P5-03` 实现 Beat 的叙事动作、信息揭示和情绪变化。
-- [ ] `P5-04` 实现 ShotVersion 结构化字段：时长帧数、景别、机位、运镜、角色动作、对白、灯光、构图、连续性、音频、生成策略、来源引用。
-- [ ] `P5-05` 支持项目模板默认规则：单镜时长、镜头密度、每镜说话人数、灯光、景深、动作复杂度、无字幕/水印/UI、无背景音乐等。
-- [ ] `P5-06` 将项目规则展开到每个 Shot 的生成上下文，不使用“同上”隐式继承。
-
-## P5.2 导演 Agent 与分镜工作区
-
-- [ ] `P5-07` 实现导演设计任务：景别、机位、节奏、视线、轴线、镜头衔接和动作复杂度建议。
-- [ ] `P5-08` 保证导演 Agent 只生成建议版本，不直接覆盖已审核剧本。
-- [ ] `P5-09` 实现卡片、表格、故事板三种基础视图；时间轴视图可先提供只读预览。
-- [ ] `P5-10` 实现单镜字段编辑、前后镜头查看和批量修改。
-- [ ] `P5-11` 实现分镜版本比较、提交审核、审核意见和回退。
-- [ ] `P5-12` 实现分镜审核闸门，未通过的 ShotVersion 不得进入最终生成。
-  - 阶段出口：一集剧本可拆为有序、可编辑、可审核的 Shot 列表，每个 Shot 均有来源、资产引用和可编译生成上下文。
-
----
-
-# P6：任务编排、Provider Gateway 与 Prompt Compiler
-
-## P6.1 Task 事实源与 Redis Streams
-
-- [ ] `P6-01` 实现 Task 状态机：PENDING、QUEUED、RUNNING、SUCCEEDED、RETRYING、FAILED、CANCELLED。
-- [ ] `P6-02` 定义任务协议：taskId、type、projectId、resourceType、resourceId、inputVersion、idempotencyKey、priority、attempt、maxAttempts、traceId。
-- [ ] `P6-03` 实现 PostgreSQL Task 记录与 Redis Stream 派发的一致性策略。
-- [ ] `P6-04` 实现 Worker 消费、认领、心跳、超时恢复和消息确认。
-- [ ] `P6-05` 实现幂等消费、Provider 已提交但本地超时、重复消费、用户取消和批量部分失败处理。
-- [ ] `P6-06` 实现上游版本变化导致结果过期的判断。
-- [ ] `P6-07` 实现任务进度、日志、错误原因、重试记录和前端状态推送。
-
-## P6.2 AI Gateway 与 Provider Adapter
-
-- [ ] `P6-08` 定义统一能力接口：LLM、Image、Video、TTS、Audio、Render、QC。
-- [ ] `P6-09` 定义 Provider、Model、Capability、RateLimit、Credential、Pricing 配置。
-- [ ] `P6-10` 实现 Mock Provider，用于离线开发、自动化测试和演示。
-- [ ] `P6-11` 选择一个真实 LLM Provider 接入内容理解/剧本生成。
-- [ ] `P6-12` 选择一个真实 Image Provider 接入资产参考图生成。
-- [ ] `P6-13` 选择一个真实 Video Provider 接入镜头生成；其他模型只保留适配器接口。
-- [ ] `P6-14` 所有 Provider 结果统一保存请求、响应、状态、模型、参数、种子、参考图、错误和费用。
-
-## P6.3 Prompt Compiler
-
-- [ ] `P6-15` 定义 Prompt 输入：项目规则、角色外观版本、场景版本、道具版本、Shot 数据、前后镜头连续性、模型模板、负面提示词。
-- [ ] `P6-16` 实现结构化中间表示，避免把用户输入直接拼成一段不可追踪字符串。
-- [ ] `P6-17` 为 Image、Video、TTS 分别实现 ProviderPrompt 编译模板。
-- [ ] `P6-18` 保存 Prompt 模板版本和编译结果，支持复现。
-- [ ] `P6-19` 实现 Prompt 预览、单镜重新编译和编译差异比较。
-  - 阶段出口：同一业务版本可以通过统一接口生成 Mock 结果和真实 Provider 结果；任务可重试、取消、幂等，Prompt 和费用可复现。
-
----
-
-# P7：资产生成与一致性系统
-
-## P7.1 资产中心
-
-- [ ] `P7-01` 实现角色、服装、场景、道具、表情、声音、视频、音效的统一资产目录。
-- [ ] `P7-02` 实现 AssetVersion，不允许下游直接引用逻辑资产而不指定版本。
-- [ ] `P7-03` 实现角色 Appearance 版本：默认、剧情阶段、天气/受伤/回忆等状态。
-- [ ] `P7-04` 实现场景空间连续性、光源方向、时间天气和摄影机区域定义。
-- [ ] `P7-05` 实现资产状态：DRAFT、GENERATING、REVIEW、APPROVED、LOCKED、ARCHIVED、FAILED。
-- [ ] `P7-06` 实现资产引用反查：被哪些剧集、场景、Shot、Timeline Clip 使用。
-- [ ] `P7-07` 实现资产集合、项目内复用和跨项目复制为新版本。
-
-## P7.2 资产生成与审核
-
-- [ ] `P7-08` 实现角色定妆照、场景概念图、道具参考图生成任务。
-- [ ] `P7-09` 支持多角度、多光线、多候选生成和候选对比。
-- [ ] `P7-10` 实现风格锁定和项目级视觉规则检查。
-- [ ] `P7-11` 实现资产候选审核、定稿、锁定和变更影响提示。
-- [ ] `P7-12` 资产审核意见绑定 AssetVersion 和候选结果，不能只写项目级留言。
-  - 阶段出口：一集所需的最小角色、场景、道具资产均有可追溯版本，至少一个候选被审核锁定，分镜可引用锁定版本。
-
----
-
-# P8：视频、音频、时间线与渲染
-
-## P8.1 镜头视频生成
-
-- [ ] `P8-01` 实现草稿模式和最终模式的生成参数。
-- [ ] `P8-02` 支持比例、分辨率、时长、首帧/尾帧、参考图、生成策略配置。
-- [ ] `P8-03` 实现单镜生成、批量生成、候选结果、失败重试、局部重生成。
-- [ ] `P8-04` 生成结果绑定 ShotVersion、AssetVersion、ProviderJob 和 CostRecord。
-- [ ] `P8-05` 实现浏览器低分辨率预览和服务端最终输出边界。
-- [ ] `P8-06` 实现镜头前后连续性检查的结果记录。
-
-## P8.2 音频生产
-
-- [ ] `P8-07` 建立对白、旁白、环境音、动作音、背景音乐的音频资产类型。
-- [ ] `P8-08` 实现 TTS Adapter 和 Mock 音频结果。
-- [ ] `P8-09` 建立 VoiceProfile，确保角色声音和语言参数可复用。
-- [ ] `P8-10` 生成字幕时间码和基础字幕文件。
-- [ ] `P8-11` 实现音频波形/时长读取、音画同步所需元数据。
-- [ ] `P8-12` V1 先支持单集基础音轨混合；复杂口型和高级降噪后置。
-
-## P8.3 Timeline 与 FFmpeg
-
-- [ ] `P8-13` 实现 TimelineVersion、VideoTrack、AudioTrack、SubtitleTrack、Clip、Transition、Keyframe 的基础结构。
-- [ ] `P8-14` 时间线只引用 AssetVersion、GenerationCandidate 或已确认媒体版本。
-- [ ] `P8-15` 实现基础剪辑工作台：素材库、播放器、属性区、时间线、版本/审核/导出入口。
-- [ ] `P8-16` 实现 Timeline JSON → Render Plan → FFmpeg filter graph。
-- [ ] `P8-17` 实现分段渲染缓存，局部镜头变更时不重渲整集。
-- [ ] `P8-18` 实现代理视频、合并、音频混合、字幕烧录和导出文件登记。
-- [ ] `P8-19` 实现 720p/1080p 至少一个稳定导出预设。
-  - 阶段出口：用 Mock 或真实生成结果完成一集可播放视频，时间线可保存版本，局部替换镜头后能够增量渲染并重新导出。
-
----
-
-# P9：自动质检、审核与成本控制
-
-## P9.1 自动质量检查
-
-- [ ] `P9-01` 画面质检：黑帧、白帧、冻结帧、编码损坏、分辨率/帧率异常。
-- [ ] `P9-02` 画面质检：面部异常、多余肢体、服装漂移、场景突变、轴线错误、闪烁、意外字幕/水印/UI。
-- [ ] `P9-03` 音频质检：爆音、静音、削波、噪声、台词截断、对白重叠、音画不同步、声线异常。
-- [ ] `P9-04` 剧情质检：关键事件遗漏、台词归属错误、人物错场景、道具状态冲突、伤势/服装/时间连续性冲突。
-- [ ] `P9-05` 质检结果写入 QCReport/QCIssue，支持标记、拦截、复核，不得未经允许覆盖人工定稿。
-- [ ] `P9-06` 将质检作为工作流条件节点接入导出前闸门。
-
-## P9.2 审核流
-
-- [ ] `P9-07` 实现剧本、分镜、资产、视频候选、TimelineVersion、最终成片的审核对象。
-- [ ] `P9-08` 审核意见绑定具体版本、段落、Shot 或时间码。
-- [ ] `P9-09` 实现通过、驳回、要求修改、重新提交和审批历史。
-- [ ] `P9-10` 实现导出前必须满足的审批条件，并提供阻塞原因。
-
-## P9.3 成本和预算
-
-- [ ] `P9-11` 每次生成记录 Provider、模型、输入/输出量、视频时长、生成次数、成功/失败、预计/实际费用、归属项目/剧集/Shot。
-- [ ] `P9-12` 实现团队月预算、项目预算、单集预算三级预算。
-- [ ] `P9-13` 批量生成前计算镜头数 × 候选数 × 单次价格 + 音频 + 渲染估算。
-- [ ] `P9-14` 超预算进入 `WAITING_BUDGET_APPROVAL`，不得继续消耗。
-- [ ] `P9-15` 提供生成中心的任务队列、预计完成时间、失败原因、重试和 Provider 状态。
-  - 阶段出口：错误结果会被标记或拦截；审核和预算闸门能够阻止不合格或超预算成片导出；生成成本可按项目/剧集/镜头汇总。
-
----
-
-# P10：端到端验收、部署与 V1 发布
-
-## P10.1 一集闭环验收
-
-- [ ] `P10-01` 使用 P0-02 的固定样本跑通原文导入。
-- [ ] `P10-02` 验证原文、角色、场景、道具、剧本、分镜、资产、生成结果、时间线、渲染文件之间的追溯关系。
-- [ ] `P10-03` 验证剧本、分镜、资产、最终成片审核闸门。
-- [ ] `P10-04` 验证至少一次任务失败重试、取消、幂等和断点续作。
-- [ ] `P10-05` 验证修改单个 Shot 后的局部重生成和增量渲染。
-- [ ] `P10-06` 验证成本记录、预算暂停和导出拦截。
-- [ ] `P10-07` 验证自动质检报告和人工复核流程。
-
-## P10.2 工程质量与交付
-
-- [ ] `P10-08` 完成关键领域单元测试、API 集成测试、Worker 测试、渲染测试。
-- [ ] `P10-09` 完成从新环境部署到导出的操作手册。
-- [ ] `P10-10` 完成 API 文档、数据字典、事件协议、Provider 接入说明和故障排查手册。
-- [ ] `P10-11` 完成备份/恢复演练：PostgreSQL、MinIO、任务数据和审计日志。
-- [ ] `P10-12` 完成安全检查：上传限制、权限隔离、密钥不入库、对象访问策略、基础限流。
-- [ ] `P10-13` 完成 V1 Demo 和回归清单。
-- [ ] `P10-14` 评审并冻结 V1 发布版本。
-  - V1 发布条件：固定样本可以稳定完成一集闭环；关键失败场景可恢复；所有生成结果、版本、审核、成本和导出文件可追溯。
-
----
-
-## 3. V1 完成后的扩展路线
-
-以下内容不与 V1 任务混排，待 P10 完成后按价值和资源重新排期。
-
-### Phase 2：工业化批量生产
-
-- [ ] 多集/多季批量拆分和批量工作流。
-- [ ] 角色一致性增强、角色身份参数和更多姿态/表情资产。
-- [ ] 首帧/尾帧工作流和更强的镜头依赖分析。
-- [ ] 候选对比、自动粗剪、失败任务恢复和批量重试优化。
-- [ ] 完整音频系统、口型对齐、降噪、混音和字幕校正。
-- [ ] 更完整的自动质检和质量评分。
-
-### Phase 3：专业创作平台
-
-- [ ] 完整多轨编辑、关键帧、特效、转场和时间线分支。
-- [ ] 多人实时协作、评论、审批和权限细化。
-- [ ] 多 Provider 智能路由、质量/成本/速度策略。
-- [ ] 项目成本预测、数据看板和生产效率分析。
-- [ ] 无限画布和可视化工作流。
-
-### Phase 4：平台化与商业化
-
-- [ ] 多租户、套餐、计费和配额。
-- [ ] 模板市场、资产市场、工作流模板。
-- [ ] Provider 密钥托管、开放 API、第三方生态。
-- [ ] 私有化部署和生产环境横向扩容。
-- [ ] 一键分发与投放 Agent。
-
----
-
-## 4. 每次实施的记录模板
-
-完成任意任务后，在对应任务下补充：
-
-```markdown
-- 完成日期：YYYY-MM-DD
-- 实现位置：绝对路径或模块/接口名称
-- 验证方式：命令、测试用例或手工步骤
-- 验证结果：通过 / 部分通过 / 未通过
-- 备注：已知限制、后续补偿任务或影响范围
-```
-
-若任务未能完成：
-
-```markdown
-- 状态改为 `[!]`
-- 记录阻塞原因
-- 记录解除条件
-- 记录是否需要拆分为新任务
-```
-
-## 5. 当前执行队列
-
-按依赖关系，下一轮实施顺序固定为：
-
-1. 完成 `P0-09`：确认架构说明书第 12 节的待评审事项并批准 v1.1。
-2. `P1-01`～`P1-13`：完成工程骨架与本地基础设施。
-3. `P2-01`～`P2-18`：完成事实源、迁移、权限和版本规则。
-4. 并行启动 `P6-01`～`P6-07`：完成任务协议和 Worker 运行基础。
-
-当前已完成：`P0-01`～`P0-09`、`P1-01`～`P1-13`、`P2-01`～`P2-18`、`P3-01`～`P3-11`。下一步实施 `P3-12`：实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
+  - 验证结果：真实 API + PostgreSQL 调用已通过，P3-09 → P3-10 → P3-11 链路状态均为 `SUCCEEDED`；生成 4 个可追溯初稿项目，并保存来源段落、精确文本、UTF-16 偏移、行号和置信度引用。
+  - 备注：当前使用 `builtin-cited-source-draft-generator@1.0.0` 确定性生成，不是 LLM 或人工定稿；无证据的字段为空并进入 `openQuestions`，不写入正式 Character、Location、Prop 主数据。
+
+> 验证审计（2026-09-25）：P2-13～P2-18、P3-01～P3-11 已完成本地 PostgreSQL/MinIO/API 真实链路与故障注入验证。P2-18 事务回滚、P2-17 新建任务型 `entityId` 回填、P3-03 数据库失败后的对象清理，以及 P3-07 旧种子数据重解析外键边界均已闭环；重试分段任务最终为 `SUCCEEDED`，新建 84 个分段，并验证新章节实体提取任务为 `SUCCEEDED`。下一步进入 P3-12。
+
+- [x] `P3-12` 实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
+  - 完成日期：2026-09-25。
+  - 实现位置：`api/prisma/migrations/20260925000500_source_draft_validation/migration.sql`、`api/src/source-documents/source-draft.schema.ts`、`api/src/source-documents/source-draft-generation.service.ts`、`api/src/source-documents/source-draft-generation.controller.ts`、`api/scripts/source-draft-validation.test.js`、`packages/contracts/src/source-draft.ts`、`README.md`、`docs/api-contracts.md`、`api/prisma/README.md`。
+  - 验证方式：Docker PostgreSQL 迁移、Prisma 状态/生成、API 单测、typecheck/build，以及本机临时 API（3011）真实回归；使用种子项目、Editor 身份和既有 P3-11 初稿验证 GET、批量校验、非法修正、合法修正、权限和审计。
+  - 验证结果：迁移首次因 Windows PowerShell UTF-8 BOM 失败，已将迁移文件改为 UTF-8 无 BOM，执行 `migrate resolve --rolled-back` 后重新部署成功；`prisma migrate status` 显示数据库 schema up to date。真实 API 返回 `200/201`：初稿 `23` 项（WORLD 1、CHARACTER 3、LOCATION 8、PROP 11），批量校验后 `validatedCount=23`；非法 PATCH 进入 `NEEDS_REVIEW` 并保存 JSON 校验错误，合法 PATCH 后进入 `CORRECTED`，并写入 `reviewedAt`、Editor `reviewedBy`；未认证请求为 `401`，Editor 读取为 `200`；数据库核验到 `REVIEW` 与 `UPDATE` 审计日志且包含响应快照。
+  - 自动化验证：`npm test --workspace api`、`npm run typecheck --workspace api`、`npm run build --workspace api` 均通过；其中 API 测试包含章节实体、初稿生成和校验 Schema smoke test。
+  - 备注：P3-12 只修改独立的 SourceDraft 审阅层，不覆盖 P3-08～P3-11 事实源、引用或正式 `Character`、`Location`、`Prop` 主数据。

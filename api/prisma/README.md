@@ -220,4 +220,10 @@ P3-08 只保留章节内候选和可追溯证据，绝不覆盖原文/来源树�
 
 `SourceDraftGeneration` 在项目、文档和不可变来源版本范围内记录生成器名称/版本、P3-09 输入结果、状态和生成时间；同一个来源版本与生成器版本唯一。`SourceDraftEntity` 存放 `WORLD`、`CHARACTER`、`LOCATION`、`PROP` 四类独立初稿和 JSON 内容；它不是正式角色/地点/道具主数据。`SourceDraftCitation` 为每条可证明内容保留来源段落、P3-09 成员、精确 mention 引文、UTF-16 半开偏移、行号与置信度。
 
-P3-11 生成器基于成功 P3-09 结果确定性构造草稿，并在事务中替换该生成器版本的输出；原始来源、P3-08 mention、P3-09 归并和 P3-10 叙事结构均不变。无来源证据的设定字段为空并进入待确认问题，不写入正式 `Character`、`Location`、`Prop`。P3-12 将建立 Schema 校验与人工修正流程。
+P3-11 生成器基于成功 P3-09 结果确定性构造草稿，并在事务中替换该生成器版本的输出；原始来源、P3-08 mention、P3-09 归并和 P3-10 叙事结构均不变。无来源证据的设定字段为空并进入待确认问题，不写入正式 `Character`、`Location`、`Prop`。P3-12 已完成 Schema 校验与人工修正流程；迁移 `20260925000500_source_draft_validation` 已在 Docker PostgreSQL 部署并通过状态检查，真实 API 已验证批量复核、非法/合法修正、权限和审计。
+
+## P3-12 结构化校验与人工修正
+
+`SourceDraftReviewStatus` 标记初稿项目的机器校验和人工修正状态：`PENDING`、`NEEDS_REVIEW`、`VALIDATED`、`CORRECTED`。`SourceDraftEntity.validationErrors` 保存稳定 JSON Pointer 路径、校验关键字、错误消息和实际/期望类型；`reviewedAt`、`reviewedBy` 记录人工修正入口的审核信息。Schema 版本当前为 `1.0.0`，只约束初稿 JSON，不修改来源引用和上游事实表。
+
+P3-12 迁移为 `20260925000500_source_draft_validation`。批量校验和单项人工修正均通过项目权限守卫，分别记录 `REVIEW` 与 `UPDATE` 审计日志；修正后服务端重新校验，错误项继续保持 `NEEDS_REVIEW`，通过项进入 `CORRECTED`。

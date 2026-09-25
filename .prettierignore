@@ -6,3 +6,7 @@ coverage/
 .ruff_cache/
 __pycache__/
 *.pyc
+workers/.pytest_cache/
+workers/.ruff_cache/
+workers/.venv/
+workers/__pycache__/

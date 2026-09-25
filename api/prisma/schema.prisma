@@ -140,6 +140,13 @@ enum SourceDraftKind {
   PROP
 }
 
+enum SourceDraftReviewStatus {
+  PENDING
+  NEEDS_REVIEW
+  VALIDATED
+  CORRECTED
+}
+
 enum NarrativeRelationshipKind {
   CO_OCCURRENCE
 }
@@ -1060,16 +1067,20 @@ model SourceDraftGeneration {
 }
 
 model SourceDraftEntity {
-  id                String          @id @default(uuid()) @db.Uuid
-  generationId      String          @db.Uuid
-  canonicalEntityId String?         @db.Uuid
+  id                String                  @id @default(uuid()) @db.Uuid
+  generationId      String                  @db.Uuid
+  canonicalEntityId String?                 @db.Uuid
   kind              SourceDraftKind
-  name              String          @db.VarChar(300)
+  name              String                  @db.VarChar(300)
   ordinal           Int
   content           Json
   confidence        Float?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  validationStatus  SourceDraftReviewStatus @default(PENDING)
+  validationErrors  Json?
+  reviewedAt        DateTime?
+  reviewedBy        String?                 @db.Uuid
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
 
   generation      SourceDraftGeneration @relation(fields: [generationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   canonicalEntity CanonicalEntity?      @relation(fields: [canonicalEntityId], references: [id], onDelete: SetNull, onUpdate: Cascade)

@@ -216,23 +216,32 @@ async function seed() {
       data: { currentVersionId: ids.sourceDocumentVersion },
     });
 
-    await tx.sourceSegment.upsert({
+    const existingSeedSegment = await tx.sourceSegment.findFirst({
       where: { id: ids.sourceSegment },
-      update: {},
-      create: {
-        id: ids.sourceSegment,
-        versionId: ids.sourceDocumentVersion,
-        type: 'CHAPTER',
-        ordinal: 1,
-        title: '巷口的灯',
-        content: '雨夜里，巷口的灯仍然亮着。',
-        startOffset: 0,
-        endOffset: 14,
-        startLine: 1,
-        endLine: 1,
-      },
+      select: { id: true },
     });
-
+    if (!existingSeedSegment) {
+      const existingOrdinal = await tx.sourceSegment.findFirst({
+        where: { versionId: ids.sourceDocumentVersion, ordinal: 1 },
+        select: { id: true },
+      });
+      if (!existingOrdinal) {
+        await tx.sourceSegment.create({
+          data: {
+            id: ids.sourceSegment,
+            versionId: ids.sourceDocumentVersion,
+            type: 'CHAPTER',
+            ordinal: 1,
+            title: '巷口的灯',
+            content: '雨夜里，巷口的灯仍然亮着。',
+            startOffset: 0,
+            endOffset: 14,
+            startLine: 1,
+            endLine: 1,
+          },
+        });
+      }
+    }
     await tx.script.upsert({
       where: { id: ids.script },
       update: {},

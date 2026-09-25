@@ -3,10 +3,12 @@ import {
   Prisma,
   SourceDraftKind,
   SourceDraftGenerationStatus,
+  SourceDraftReviewStatus,
   SourceVersionEntityResolutionStatus,
   SourceVersionStatus,
 } from '@prisma/client';
 import { PrismaService } from '../common/prisma.service';
+import { SOURCE_DRAFT_SCHEMA_VERSION, validateSourceDraft } from './source-draft.schema';
 
 export const SOURCE_DRAFT_GENERATOR_NAME = 'builtin-cited-source-draft-generator';
 export const SOURCE_DRAFT_GENERATOR_VERSION = '1.0.0';
@@ -80,6 +82,7 @@ export class SourceDraftGenerationService {
       });
       await tx.sourceDraftEntity.deleteMany({ where: { generationId: record.id } });
       for (const [index, draft] of drafts.entries()) {
+        const validationErrors = validateSourceDraft(draft.kind, draft.name, draft.content);
         await tx.sourceDraftEntity.create({
           data: {
             generationId: record.id,
@@ -89,6 +92,12 @@ export class SourceDraftGenerationService {
             ordinal: index,
             confidence: draft.confidence,
             content: draft.content as Prisma.InputJsonValue,
+            validationStatus: validationErrors.length
+              ? SourceDraftReviewStatus.NEEDS_REVIEW
+              : SourceDraftReviewStatus.VALIDATED,
+            validationErrors: validationErrors.length
+              ? (validationErrors as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
             citations: {
               create: draft.citations.map((citation) => ({
                 sourceSegmentId: citation.sourceSegmentId,
@@ -110,6 +119,99 @@ export class SourceDraftGenerationService {
       });
     });
     return this.get(projectId, documentId, versionId, generation.id);
+  }
+
+  async validate(projectId: string, documentId: string, versionId: string) {
+    const generation = await this.findGeneration(projectId, documentId, versionId);
+    await this.prisma.$transaction(async (tx) => {
+      for (const item of generation.items) {
+        const validationErrors = validateSourceDraft(item.kind, item.name, item.content);
+        await tx.sourceDraftEntity.update({
+          where: { id: item.id },
+          data: {
+            validationStatus:
+              validationErrors.length > 0
+                ? SourceDraftReviewStatus.NEEDS_REVIEW
+                : item.validationStatus === SourceDraftReviewStatus.CORRECTED
+                  ? SourceDraftReviewStatus.CORRECTED
+                  : SourceDraftReviewStatus.VALIDATED,
+            validationErrors: validationErrors.length
+              ? (validationErrors as unknown as Prisma.InputJsonValue)
+              : Prisma.JsonNull,
+          },
+        });
+      }
+    });
+    return this.get(projectId, documentId, versionId, generation.id);
+  }
+
+  async updateItem(
+    projectId: string,
+    documentId: string,
+    versionId: string,
+    draftEntityId: string,
+    input: SourceDraftCorrectionInput,
+    reviewerId?: string,
+  ) {
+    const item = await this.prisma.sourceDraftEntity.findFirst({
+      where: {
+        id: draftEntityId,
+        generation: {
+          projectId,
+          sourceDocumentId: documentId,
+          sourceVersionId: versionId,
+          generatorName: SOURCE_DRAFT_GENERATOR_NAME,
+          generatorVersion: SOURCE_DRAFT_GENERATOR_VERSION,
+        },
+      },
+      include: { generation: true },
+    });
+    if (!item) throw new NotFoundException('初稿项目不存在或不属于当前原文版本');
+    if (!isRecord(input)) throw new BadRequestException('请求体必须是 JSON 对象');
+    if (input.name !== undefined && typeof input.name !== 'string') {
+      throw new BadRequestException('name 必须是字符串');
+    }
+    if (input.content !== undefined && !isRecord(input.content)) {
+      throw new BadRequestException('content 必须是 JSON 对象');
+    }
+    if (input.name === undefined && input.content === undefined) {
+      throw new BadRequestException('至少提供 name 或 content 之一');
+    }
+    const name = input.name ?? item.name;
+    const content = input.content ?? item.content;
+    const validationErrors = validateSourceDraft(item.kind, name, content);
+    await this.prisma.sourceDraftEntity.update({
+      where: { id: item.id },
+      data: {
+        name,
+        content: content as Prisma.InputJsonValue,
+        validationStatus: validationErrors.length
+          ? SourceDraftReviewStatus.NEEDS_REVIEW
+          : SourceDraftReviewStatus.CORRECTED,
+        validationErrors: validationErrors.length
+          ? (validationErrors as unknown as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
+        reviewedAt: new Date(),
+        reviewedBy: reviewerId ?? null,
+      },
+    });
+    return this.get(projectId, documentId, versionId, item.generation.id);
+  }
+
+  private async findGeneration(projectId: string, documentId: string, versionId: string) {
+    const generation = await this.prisma.sourceDraftGeneration.findFirst({
+      where: {
+        projectId,
+        sourceDocumentId: documentId,
+        sourceVersionId: versionId,
+        generatorName: SOURCE_DRAFT_GENERATOR_NAME,
+        generatorVersion: SOURCE_DRAFT_GENERATOR_VERSION,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { items: true },
+    });
+    if (!generation) throw new NotFoundException('该版本尚无初稿生成结果');
+    return generation;
   }
 
   async get(projectId: string, documentId: string, versionId: string, generationId?: string) {
@@ -148,17 +250,36 @@ export class SourceDraftGenerationService {
       },
       status: generation.status,
       generatedAt: generation.generatedAt,
-      summary: Object.fromEntries(
-        Object.values(SourceDraftKind).map((kind) => [
-          kind.toLowerCase() + 'Count',
-          generation.items.filter((item) => item.kind === kind).length,
-        ]),
-      ),
+      schema: { version: SOURCE_DRAFT_SCHEMA_VERSION },
+      summary: {
+        ...Object.fromEntries(
+          Object.values(SourceDraftKind).map((kind) => [
+            kind.toLowerCase() + 'Count',
+            generation.items.filter((item) => item.kind === kind).length,
+          ]),
+        ),
+        pendingCount: generation.items.filter(
+          (item) => item.validationStatus === SourceDraftReviewStatus.PENDING,
+        ).length,
+        needsReviewCount: generation.items.filter(
+          (item) => item.validationStatus === SourceDraftReviewStatus.NEEDS_REVIEW,
+        ).length,
+        validatedCount: generation.items.filter(
+          (item) => item.validationStatus === SourceDraftReviewStatus.VALIDATED,
+        ).length,
+        correctedCount: generation.items.filter(
+          (item) => item.validationStatus === SourceDraftReviewStatus.CORRECTED,
+        ).length,
+      },
       items: generation.items,
     };
   }
 }
 
+export type SourceDraftCorrectionInput = {
+  name?: string;
+  content?: Record<string, unknown>;
+};
 type Citation = {
   sourceSegmentId: string;
   canonicalMemberId: string;
@@ -295,4 +416,8 @@ export function buildDrafts(entities: Canonical[]): Draft[] {
         ? 1
         : a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'zh-CN'),
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

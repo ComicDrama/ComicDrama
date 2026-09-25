@@ -324,3 +324,15 @@ x-user-id: <active-user-uuid>
 生成器 `builtin-cited-source-draft-generator@1.0.0` 按版本与生成器版本幂等生成 `WORLD`、`CHARACTER`、`LOCATION`、`PROP` 初稿，保存于 `SourceDraftGeneration`、`SourceDraftEntity` 和 `SourceDraftCitation`。引用指向原文 `SourceSegment`、P3-09 规范成员及 mention 的精确文本、UTF-16 半开偏移、行号和置信度。
 
 生成是可重复的确定性候选，不是 LLM 结论或人工定稿；无法从来源证明的内容不推断，字段保持空值并列入 `openQuestions`。世界观初稿仅索引来源中已有的组织、时间、事件候选；不修改 P3-08～P3-10 事实源，不 upsert 正式 `Character`、`Location`、`Prop`。
+
+## 结构化校验与人工修正（P3-12）
+
+```text
+POST  /api/projects/:projectId/source-documents/:documentId/versions/:versionId/source-drafts/validate
+PATCH /api/projects/:projectId/source-documents/:documentId/versions/:versionId/source-drafts/:draftEntityId
+x-user-id: <active-user-uuid>
+```
+
+P3-12 使用版本化 JSON Schema `1.0.0` 校验四类初稿的名称、必填字段、字段类型和未知字段。`GET source-drafts` 返回 `schema.version`、按 `kind` 的数量以及 `pendingCount`、`needsReviewCount`、`validatedCount`、`correctedCount`。每个 `SourceDraftEntity` 返回 `validationStatus`、`validationErrors`、`reviewedAt` 和 `reviewedBy`。
+
+批量校验需要项目 `EDIT` 权限并写入 `REVIEW` 审计日志；单项修正需要项目 `EDIT` 权限，Body 可包含 `name`、`content` 至少一个字段。服务端保存修正后重新校验：有错误标记为 `NEEDS_REVIEW`，通过校验标记为 `CORRECTED`，并记录审核人和时间；修正请求写入 `UPDATE` 审计日志。引用和 P3-08～P3-11 原始事实均保持只读。

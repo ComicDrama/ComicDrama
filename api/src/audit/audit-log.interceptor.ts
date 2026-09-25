@@ -33,7 +33,7 @@ export class AuditLogInterceptor implements NestInterceptor {
           this.auditLog.recordRequestAction(request, response, {
             action: options.action,
             entityType: options.entityType,
-            entityId: this.resolveValue(request, options.entityIdParam ?? 'entityId'),
+            entityId: this.resolveEntityId(request, options.entityIdParam, result),
             projectId: this.resolveProjectId(request, options.projectIdParam),
             after: options.captureResponseSnapshot ? this.toJsonValue(result) : undefined,
             metadata: {
@@ -54,6 +54,37 @@ export class AuditLogInterceptor implements NestInterceptor {
     return this.isUuid(value) ? value : undefined;
   }
 
+  private resolveEntityId(
+    request: AuthenticatedRequest,
+    parameterName: string | undefined,
+    result: unknown,
+  ): string | undefined {
+    const requestValue = this.resolveValue(request, parameterName ?? 'entityId');
+    if (requestValue !== undefined) {
+      return requestValue;
+    }
+
+    const responseValue = this.readResponseEntityId(result);
+    return typeof responseValue === 'string' && responseValue.length <= 120
+      ? responseValue
+      : undefined;
+  }
+
+  private readResponseEntityId(result: unknown): unknown {
+    if (typeof result !== 'object' || result === null) {
+      return undefined;
+    }
+    const record = result as Record<string, unknown>;
+    const data = record.data;
+    if (typeof data === 'object' && data !== null) {
+      const dataRecord = data as Record<string, unknown>;
+      if (dataRecord.id !== undefined) {
+        return dataRecord.id;
+      }
+    }
+    return record.id;
+  }
+
   private resolveValue(request: AuthenticatedRequest, parameterName: string): string | undefined {
     const routeValue = request.params?.[parameterName];
     const queryValue = request.query?.[parameterName];
@@ -69,7 +100,7 @@ export class AuditLogInterceptor implements NestInterceptor {
   private isUuid(value: string | undefined): value is string {
     return (
       value !== undefined &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
     );
   }
 

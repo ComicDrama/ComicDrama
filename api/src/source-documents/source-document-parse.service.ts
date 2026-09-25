@@ -47,7 +47,7 @@ export class SourceDocumentParseService {
       throw new NotFoundException('原文版本不存在或不属于当前项目');
     }
 
-    await this.markParsing(version.documentId, version.id);
+    await this.markParsing(projectId, version.documentId, version.id);
 
     try {
       const parser = this.parserRegistry.getParser(version.document.documentType);
@@ -72,8 +72,40 @@ export class SourceDocumentParseService {
     }
   }
 
-  private async markParsing(documentId: string, versionId: string): Promise<void> {
+  private async markParsing(
+    projectId: string,
+    documentId: string,
+    versionId: string,
+  ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      const segmentIds = await tx.sourceSegment.findMany({
+        where: { versionId },
+        select: { id: true },
+      });
+      const staleSegmentIds = segmentIds.map((segment) => segment.id);
+
+      // A re-parse invalidates all P3-08 through P3-11 results tied to the old segments.
+      // Keep the restrictive source-segment foreign keys as a safety net and clear dependents first.
+      await tx.task.deleteMany({
+        where: {
+          projectId,
+          type: 'CHAPTER_ENTITY_EXTRACTION',
+          resourceType: 'SourceSegment',
+          resourceId: { in: staleSegmentIds },
+        },
+      });
+      await tx.task.deleteMany({
+        where: {
+          projectId,
+          type: { in: ['CROSS_CHAPTER_ENTITY_RESOLUTION', 'SOURCE_VERSION_NARRATIVE_STRUCTURE'] },
+          resourceType: 'SourceDocumentVersion',
+          resourceId: versionId,
+        },
+      });
+      await tx.sourceDraftGeneration.deleteMany({ where: { sourceVersionId: versionId } });
+      await tx.narrativeStructure.deleteMany({ where: { sourceVersionId: versionId } });
+      await tx.sourceVersionEntityResolution.deleteMany({ where: { sourceVersionId: versionId } });
+      await tx.chapterEntityExtraction.deleteMany({ where: { sourceVersionId: versionId } });
       await tx.sourceSegment.deleteMany({ where: { versionId } });
       await tx.sourceDocumentVersion.update({
         where: { id: versionId },

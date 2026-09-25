@@ -1,4 +1,13 @@
 export type SourceDraftKind = 'WORLD' | 'CHARACTER' | 'LOCATION' | 'PROP';
+export type SourceDraftReviewStatus = 'PENDING' | 'NEEDS_REVIEW' | 'VALIDATED' | 'CORRECTED';
+
+export interface SourceDraftValidationIssue {
+  path: string;
+  keyword: 'required' | 'type' | 'additionalProperties' | 'minLength';
+  message: string;
+  expected?: string;
+  actual?: string;
+}
 
 export interface SourceDraftCitation {
   id: string;
@@ -18,6 +27,10 @@ export interface SourceDraftEntity {
   name: string;
   canonicalEntityId: string | null;
   confidence: number | null;
+  validationStatus: SourceDraftReviewStatus;
+  validationErrors: SourceDraftValidationIssue[] | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
   content: Record<string, unknown>;
   citations: SourceDraftCitation[];
 }
@@ -27,6 +40,7 @@ export interface SourceDraftGeneration {
   generator: { name: string; version: string; method: 'deterministic-candidate' };
   status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED';
   generatedAt: string | null;
+  schema: { version: string };
   summary: Record<string, number>;
   items: SourceDraftEntity[];
 }
