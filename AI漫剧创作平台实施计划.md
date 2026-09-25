@@ -423,7 +423,13 @@
   - 验证结果：真实 API + PostgreSQL 调用已通过，P3-09 → P3-10 → P3-11 链路状态均为 `SUCCEEDED`；生成 4 个可追溯初稿项目，并保存来源段落、精确文本、UTF-16 偏移、行号和置信度引用。
   - 备注：当前使用 `builtin-cited-source-draft-generator@1.0.0` 确定性生成，不是 LLM 或人工定稿；无证据的字段为空并进入 `openQuestions`，不写入正式 Character、Location、Prop 主数据。
 
-> 验证审计（2026-09-25）：P2-13～P2-18、P3-01～P3-11 已完成本地 PostgreSQL/MinIO/API 真实链路与故障注入验证。P2-18 事务回滚、P2-17 新建任务型 `entityId` 回填、P3-03 数据库失败后的对象清理，以及 P3-07 旧种子数据重解析外键边界均已闭环；重试分段任务最终为 `SUCCEEDED`，新建 84 个分段，并验证新章节实体提取任务为 `SUCCEEDED`。下一步进入 P3-12。
+> 验证审计（2026-09-25）：P2-13～P2-18、P3-01～P3-11 已完成本地 PostgreSQL/MinIO/API 真实链路与故障注入验证。P2-18 事务回滚、P2-17 新建任务型 `entityId` 回填、P3-03 数据库失败后的对象清理，以及 P3-07 旧种子数据重解析外键边界均已闭环；重试分段任务最终为 `SUCCEEDED`，新建 84 个分段，并验证新章节实体提取任务为 `SUCCEEDED`。P3-12 和 P3-13 已完成，下一阶段为 P4 剧本工程；P4 子任务需在实施前拆分并补充验收标准。
+
+- [x] `P3-13` 实现“原文 → 提取结果”的差异/来源查看。
+- 完成日期：2026-09-25。
+- 实现位置：`api/src/source-documents/source-draft-source.controller.ts`、`api/src/source-documents/source-draft-source.service.ts`、`api/src/source-documents/source-document.module.ts`、`packages/contracts/src/source-draft.ts`、`docs/api-contracts.md`、`README.md`。
+- 验证方式：Docker PostgreSQL、本机临时 API（3011）真实回归；正常来源、上下文边界、引用一致性、非法 UUID、非法上下文参数、未认证访问。
+- 验证结果：真实来源接口返回 109 条引用，`quoteMatch=MATCH`；非法 UUID 返回 400，非法上下文返回 400，未认证请求返回 401；typecheck/build/test/Prettier 均通过。来源读取只读且严格绑定项目、文档和原文版本。
 
 - [x] `P3-12` 实现结构化 JSON Schema 校验、错误项标记和人工修正入口。
   - 完成日期：2026-09-25。
