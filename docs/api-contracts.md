@@ -356,3 +356,18 @@ GET /api/projects/:projectId/source-documents/:documentId/versions/:versionId/so
 - `context`：裁剪后的原文上下文和坐标。
 
 `MISMATCH` 和 `OUT_OF_RANGE` 是可审阅的来源异常，接口仍返回 HTTP 200，不会静默修改原始引用。
+
+## P4 剧本工程契约与版本边界（P4-01）
+
+P4 剧本工程复用现有 `Script`、`ScriptVersion`、`Scene`、`Beat`、`Dialogue` 模型，不在 P4-01 重复创建数据库表。当前任务先冻结接口边界，后续实现严格遵循以下约束：
+
+- `Script` 归属于一个 `Project` 和一个 `Episode`；`Episode` 的 `seasonId`、`projectId` 必须与剧本归属一致。
+- `ScriptVersion` 归属于一个 `Script`，通过 `sourceVersionId` 可选绑定同项目的 `SourceDocumentVersion`；`parentVersionId` 必须指向同一剧本的已有版本。
+- `Scene` 只能属于一个 `ScriptVersion`；`Beat` 只能属于一个 `Scene`；`Dialogue` 必须属于同一 `Scene`，可选绑定同一 Scene 的 `Beat`。
+- `Scene.sourceSegmentId`、`Beat.sourceSegmentId`、`Dialogue.sourceSegmentId` 如存在，必须属于 `ScriptVersion.sourceVersionId` 对应的原文版本；不能跨项目、文档或原文版本引用。
+- 写操作要求项目 `EDIT` 权限；读取要求项目 `VIEW` 权限；所有创建、修改、审核、发布和归档操作写入 `AuditLog`。
+- `ScriptVersion` 状态建议流转为：`DRAFT → REVIEW → APPROVED → SUPERSEDED`；`ARCHIVED` 为终态。已 `APPROVED` 或 `ARCHIVED` 的版本不可原地修改，只能从可复制版本创建新草稿。
+- 版本号由事务内服务端递增；当前版本指针只能由服务端更新。发布前必须通过结构完整性、层级归属、来源版本一致性和必要字段校验。
+- `VersioningService.createScriptVersion()` 是版本号、父版本和聚合根指针的统一入口；业务服务不得自行计算版本号或绕过事务。
+
+P4 后续接口实现按资源路径组织，具体路径在对应任务完成时落地：脚本聚合查询、版本列表、Scene/Beat/Dialogue 编辑、版本复制/发布和来源查看均必须携带 `projectId` 上下文，并对路径中的项目、剧本、版本、场景、节拍和对白逐级校验。

@@ -438,3 +438,35 @@
   - 验证结果：迁移首次因 Windows PowerShell UTF-8 BOM 失败，已将迁移文件改为 UTF-8 无 BOM，执行 `migrate resolve --rolled-back` 后重新部署成功；`prisma migrate status` 显示数据库 schema up to date。真实 API 返回 `200/201`：初稿 `23` 项（WORLD 1、CHARACTER 3、LOCATION 8、PROP 11），批量校验后 `validatedCount=23`；非法 PATCH 进入 `NEEDS_REVIEW` 并保存 JSON 校验错误，合法 PATCH 后进入 `CORRECTED`，并写入 `reviewedAt`、Editor `reviewedBy`；未认证请求为 `401`，Editor 读取为 `200`；数据库核验到 `REVIEW` 与 `UPDATE` 审计日志且包含响应快照。
   - 自动化验证：`npm test --workspace api`、`npm run typecheck --workspace api`、`npm run build --workspace api` 均通过；其中 API 测试包含章节实体、初稿生成和校验 Schema smoke test。
   - 备注：P3-12 只修改独立的 SourceDraft 审阅层，不覆盖 P3-08～P3-11 事实源、引用或正式 `Character`、`Location`、`Prop` 主数据。
+
+# P4：IP 圣经与剧本工程
+
+## P4.1 剧本工程基础契约与版本边界
+
+- [ ] `P4-01` 定义剧本工程 API 契约、状态机和版本边界。
+  - 验收标准：明确 `Script`、`ScriptVersion`、`Scene`、`Beat`、`Dialogue` 的读写范围；明确项目、Season、Episode 归属与跨项目隔离；明确 `sourceVersionId`、来源段落绑定、父版本和当前版本规则；明确草稿、评审、批准、归档状态转换；明确发布前校验、权限和审计要求；同步更新 `docs/api-contracts.md`。
+  - 前置事实：复用现有 Prisma 模型和 `VersioningService.createScriptVersion()`，本任务不重复创建数据库模型、不实现业务写接口。
+  - 状态机：`ScriptVersion DRAFT → REVIEW → APPROVED → SUPERSEDED`；`DRAFT/REVIEW` 可继续创建新草稿，`APPROVED` 只读；归档为终态；发布时同步更新 `Script.status` 和 `currentVersionId`，所有状态变化写入 AuditLog。
+  - 版本边界：一个 `Script` 仅属于一个 `Episode`；Episode 必须属于同一 Project；一个 ScriptVersion 只能引用同一项目的 `SourceDocumentVersion`；Scene/Beat/Dialogue 只能引用所属 ScriptVersion/Scene/Beat，来源段落必须来自该 ScriptVersion 的 `sourceVersionId`。
+  - 完成日期：2026-09-26。
+  - 实现位置：docs/api-contracts.md、AI漫剧创作平台实施计划.md；复用 pi/prisma/schema.prisma 和 pi/src/versioning/versioning.service.ts。
+  - 验证方式：核对现有 Prisma 模型、版本服务和 P2-16/P2-17/P2-18 权限、审计、版本规则；执行文档格式检查和 git diff --check。
+  - 验证结果：已冻结 Script/ScriptVersion/Scene/Beat/Dialogue 的归属、来源、状态机、发布、权限、审计及版本边界；确认 P4-01 不新增迁移、不重复实现版本号逻辑。
+
+- [ ] `P4-02` 从 SourceDraft 创建 Script 和首个 ScriptVersion。
+  - 验收标准：绑定项目、Episode；关联 `SourceDocumentVersion`；可选关联 `SourceDraftGeneration`；创建幂等；保留来源引用；只读取允许状态的初稿。
+
+- [ ] `P4-03` 实现 Script/ScriptVersion 查询与版本列表。
+  - 验收标准：按项目、Season、Episode 查询；返回当前版本、父版本、状态、来源版本、更新时间；严格项目隔离。
+
+- [ ] `P4-04` 实现 Scene、Beat、Dialogue 结构化编辑接口。
+  - 验收标准：增删改；排序；层级归属校验；来源段落绑定；字段校验；幂等更新；不能跨 ScriptVersion 写入。
+
+- [ ] `P4-05` 实现 ScriptVersion 草稿复制、版本创建和发布规则。
+  - 验收标准：草稿只能从已有版本复制；版本号事务递增；已发布版本不可直接修改；发布前校验；发布写入 AuditLog。
+
+- [ ] `P4-06` 实现剧本内容来源查看。
+  - 验收标准：Scene/Beat/Dialogue 可查看 SourceSegment、SourceDraftCitation、原文上下文；跨项目、跨文档、跨版本必须失败；来源异常显式标记。
+
+- [ ] `P4-07` 生成 P4 测试样本并完成真实 API 回归。
+  - 验收标准：使用 `V1测试样本_雨夜的灯.md`；创建 ScriptVersion；创建至少一个 Scene、Beat、Dialogue；查询、编辑、复制、发布；权限和审计；Docker PostgreSQL 迁移和 CI 检查。
